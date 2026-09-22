@@ -15,8 +15,21 @@ FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
-COPY --from=build /app/target/*.jar app.jar
+RUN groupadd --system telemed \
+    && useradd --system \
+       --gid telemed \
+       --home-dir /app \
+       --shell /usr/sbin/nologin \
+       telemed
+
+COPY --from=build \
+     --chown=telemed:telemed \
+     /app/target/*.jar \
+     app.jar
+
+USER telemed
 
 EXPOSE 8081
+EXPOSE 9081
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
