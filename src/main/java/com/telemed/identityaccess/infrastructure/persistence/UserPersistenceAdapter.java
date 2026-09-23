@@ -1,9 +1,14 @@
 package com.telemed.identityaccess.infrastructure.persistence;
 
+import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
+
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
 @Repository
 public class UserPersistenceAdapter implements UserRepositoryPort {
@@ -49,7 +54,29 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
                 user.active()
         );
 
-        UserJpaEntity saved = users.save(entity);
+        UserJpaEntity saved;
+
+        try {
+            saved = users.saveAndFlush(entity);
+
+        } catch (DataIntegrityViolationException exception) {
+
+            if (users.existsByEmailIgnoreCase(user.email())) {
+                throw new RegistrationException(
+                        EMAIL_ALREADY_REGISTERED,
+                        "Email is already registered."
+                );
+            }
+
+            if (users.existsByIdentityDocument(user.identityDocument())) {
+                throw new RegistrationException(
+                        IDENTITY_DOCUMENT_ALREADY_REGISTERED,
+                        "Identity document is already registered."
+                );
+            }
+
+            throw exception;
+        }
 
         return new User(
                 saved.getId(),
