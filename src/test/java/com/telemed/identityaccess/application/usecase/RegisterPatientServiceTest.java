@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.application.usecase;
 
+import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.in.RegisterPatientUseCase;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
@@ -7,10 +8,11 @@ import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.junit.jupiter.api.Test;
 
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class RegisterPatientServiceTest {
@@ -68,76 +70,141 @@ class RegisterPatientServiceTest {
                         && user.passwordHash().equals("$2a$10$hashed-password")
                         && !user.passwordHash().equals("Secret123!")
                         && user.role() == Role.PATIENT
+                        && user.active()
+                        && !user.verified()
         ));
     }
 
     @Test
-void shouldRejectRegistrationWhenEmailAlreadyExists() {
+    void shouldRejectRegistrationWhenEmailAlreadyExists() {
 
-    UserRepositoryPort users = mock(UserRepositoryPort.class);
-    PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+        UserRepositoryPort users = mock(UserRepositoryPort.class);
+        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
 
-    when(users.existsByEmail("patient@example.com"))
-            .thenReturn(true);
+        when(users.existsByEmail("patient@example.com"))
+                .thenReturn(true);
 
-    RegisterPatientUseCase useCase =
-            new RegisterPatientService(users, passwordHasher);
+        RegisterPatientUseCase useCase =
+                new RegisterPatientService(users, passwordHasher);
 
-    var command = new RegisterPatientUseCase.Command(
-            "Maria Patient",
-            "PATIENT@example.com",
-            "123456789",
-            "Secret123!"
-    );
+        var command = new RegisterPatientUseCase.Command(
+                "Maria Patient",
+                "PATIENT@example.com",
+                "123456789",
+                "Secret123!"
+        );
 
-    var exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> useCase.register(command)
-    );
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> useCase.register(command)
+        );
 
-    assertEquals(
-            "Email is already registered.",
-            exception.getMessage()
-    );
+        assertEquals(
+                EMAIL_ALREADY_REGISTERED,
+                exception.reason()
+        );
 
-    verify(users, never()).save(any());
-    verify(passwordHasher, never()).hash(anyString());
-}
+        assertEquals(
+                "Email is already registered.",
+                exception.getMessage()
+        );
+
+        verify(users, never())
+                .existsByIdentityDocument(anyString());
+
+        verify(users, never())
+                .save(any());
+
+        verify(passwordHasher, never())
+                .hash(anyString());
+    }
 
     @Test
-void shouldRejectRegistrationWhenIdentityDocumentAlreadyExists() {
+    void shouldRejectRegistrationWhenIdentityDocumentAlreadyExists() {
 
-    UserRepositoryPort users = mock(UserRepositoryPort.class);
-    PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+        UserRepositoryPort users = mock(UserRepositoryPort.class);
+        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
 
-    when(users.existsByEmail("patient@example.com"))
-            .thenReturn(false);
+        when(users.existsByEmail("patient@example.com"))
+                .thenReturn(false);
 
-    when(users.existsByIdentityDocument("123456789"))
-            .thenReturn(true);
+        when(users.existsByIdentityDocument("123456789"))
+                .thenReturn(true);
 
-    RegisterPatientUseCase useCase =
-            new RegisterPatientService(users, passwordHasher);
+        RegisterPatientUseCase useCase =
+                new RegisterPatientService(users, passwordHasher);
 
-    var command = new RegisterPatientUseCase.Command(
-            "Maria Patient",
-            "patient@example.com",
-            "123456789",
-            "Secret123!"
-    );
+        var command = new RegisterPatientUseCase.Command(
+                "Maria Patient",
+                "patient@example.com",
+                "123456789",
+                "Secret123!"
+        );
 
-    var exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> useCase.register(command)
-    );
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> useCase.register(command)
+        );
 
-    assertEquals(
-            "Identity document is already registered.",
-            exception.getMessage()
-    );
+        assertEquals(
+                IDENTITY_DOCUMENT_ALREADY_REGISTERED,
+                exception.reason()
+        );
 
-    verify(users, never()).save(any());
-    verify(passwordHasher, never()).hash(anyString());
-}
+        assertEquals(
+                "Identity document is already registered.",
+                exception.getMessage()
+        );
 
+        verify(users, never())
+                .save(any());
+
+        verify(passwordHasher, never())
+                .hash(anyString());
+    }
+
+    @Test
+    void shouldRejectBlankRegistrationData() {
+
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        " ",
+                        "123456789",
+                        "Secret123!"
+                )
+        );
+
+        assertEquals(
+                INVALID_REGISTRATION,
+                exception.reason()
+        );
+
+        assertEquals(
+                "Email is required.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldRedactPasswordFromCommandToString() {
+
+        var command = new RegisterPatientUseCase.Command(
+                "Maria Patient",
+                "patient@example.com",
+                "123456789",
+                "Secret123!"
+        );
+
+        String commandText = command.toString();
+
+        assertFalse(
+                commandText.contains("Secret123!")
+        );
+
+        assertTrue(
+                commandText.contains("password=***")
+        );
+    }
 }
