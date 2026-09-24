@@ -1,6 +1,8 @@
 package com.telemed.identityaccess.infrastructure.web;
 
 import com.telemed.identityaccess.application.exception.RegistrationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,26 +15,36 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(RegistrationException.class)
     public ResponseEntity<ApiErrorResponse> handleRegistrationException(
             RegistrationException exception
     ) {
 
-        HttpStatus status = switch (exception.reason()) {
-            case EMAIL_ALREADY_REGISTERED,
-                 IDENTITY_DOCUMENT_ALREADY_REGISTERED -> HttpStatus.CONFLICT;
+        if (exception.reason()
+                == RegistrationException.Reason.INVALID_REGISTRATION) {
 
-            case INVALID_REGISTRATION -> HttpStatus.BAD_REQUEST;
-        };
+            ApiErrorResponse response = new ApiErrorResponse(
+                    "INVALID_REGISTRATION",
+                    "Registration data is invalid.",
+                    Map.of()
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(response);
+        }
 
         ApiErrorResponse response = new ApiErrorResponse(
-                exception.reason().name(),
-                exception.getMessage(),
+                "REGISTRATION_CONFLICT",
+                "Registration cannot be completed with the provided data.",
                 Map.of()
         );
 
         return ResponseEntity
-                .status(status)
+                .status(HttpStatus.CONFLICT)
                 .body(response);
     }
 
@@ -60,6 +72,27 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleUnexpectedException(
+            Exception exception
+    ) {
+
+        log.error(
+                "Unexpected error while processing request.",
+                exception
+        );
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                "INTERNAL_ERROR",
+                "An unexpected error occurred.",
+                Map.of()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
     }
 }

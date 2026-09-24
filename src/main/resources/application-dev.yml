@@ -6,7 +6,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/telemed_identity}
     username: ${DB_USERNAME:telemed_identity}
-    password: ${DB_PASSWORD:telemed_identity_dev}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
