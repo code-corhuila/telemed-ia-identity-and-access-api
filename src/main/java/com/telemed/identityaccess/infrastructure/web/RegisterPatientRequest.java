@@ -29,13 +29,23 @@ public record RegisterPatientRequest(
 
 ) {
 
-        @Override
-        public String toString() {
+    public RegisterPatientRequest {
+        fullName = normalize(fullName);
+        email = normalize(email);
+        identityDocument = normalize(identityDocument);
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    @Override
+    public String toString() {
         return "RegisterPatientRequest[" +
                 "fullName=[REDACTED]" +
                 ", email=[REDACTED]" +
                 ", identityDocument=[REDACTED]" +
                 ", password=[REDACTED]" +
                 "]";
-        }
+    }
 }
