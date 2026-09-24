@@ -118,6 +118,32 @@ class UserPersistenceAdapterIntegrationTest {
     }
 
     @Test
+void shouldRejectDuplicateEmailIgnoringCase() {
+
+    adapter.save(User.registerPatient(
+            "First Patient",
+            "patient@example.com",
+            "TEST-DOC-CASE-001",
+            "$2a$10$integration-test-hash"
+    ));
+
+    RegistrationException exception = assertThrows(
+            RegistrationException.class,
+            () -> adapter.save(User.registerPatient(
+                    "Second Patient",
+                    "PATIENT@EXAMPLE.COM",
+                    "TEST-DOC-CASE-002",
+                    "$2a$10$integration-test-hash"
+            ))
+    );
+
+    assertEquals(
+            EMAIL_ALREADY_REGISTERED,
+            exception.reason()
+    );
+}
+
+    @Test
     void shouldTranslateDuplicateIdentityDocumentIntoRegistrationConflict() {
 
         adapter.save(User.registerPatient(
