@@ -32,9 +32,9 @@ public class RegisterPatientController {
 
         var result = registerPatientUseCase.register(command);
 
-        var response = new RegisterPatientResponse(
+       var response = RegisterPatientResponse.from(
                 result.userId(),
-                result.role().name()
+                result.role()
         );
 
         return ResponseEntity
