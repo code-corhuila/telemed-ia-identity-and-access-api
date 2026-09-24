@@ -29,13 +29,13 @@ public record RegisterPatientRequest(
 
 ) {
 
-    @Override
-    public String toString() {
+        @Override
+        public String toString() {
         return "RegisterPatientRequest[" +
-                "fullName=" + fullName +
-                ", email=" + email +
+                "fullName=[REDACTED]" +
+                ", email=[REDACTED]" +
                 ", identityDocument=[REDACTED]" +
                 ", password=[REDACTED]" +
                 "]";
-    }
+        }
 }
