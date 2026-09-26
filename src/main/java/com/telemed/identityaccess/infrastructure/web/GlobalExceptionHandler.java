@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.infrastructure.web;
 
+import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,33 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(response);
     }
+
+    @ExceptionHandler(AuthenticationException.class)
+        public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
+                AuthenticationException exception
+        ) {
+
+        return switch (exception.reason()) {
+
+                case INVALID_CREDENTIALS -> {
+
+                log.warn(
+                        "Authentication attempt rejected. reason={}",
+                        exception.reason()
+                );
+
+                ApiErrorResponse response = new ApiErrorResponse(
+                        "INVALID_CREDENTIALS",
+                        "Invalid email or password.",
+                        Map.of()
+                );
+
+                yield ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(response);
+                }
+        };
+        }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
