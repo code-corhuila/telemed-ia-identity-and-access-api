@@ -19,6 +19,8 @@ import java.util.Optional;
 import static com.telemed.identityaccess.application.exception.AuthenticationException.Reason.INVALID_CREDENTIALS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -116,8 +118,8 @@ class LoginServiceTest {
 
         verify(accessTokens, never())
                 .issue(
-                        org.mockito.ArgumentMatchers.anyLong(),
-                        org.mockito.ArgumentMatchers.any()
+                        anyLong(),
+                        any()
                 );
     }
 
@@ -145,8 +147,8 @@ class LoginServiceTest {
 
         verify(accessTokens, never())
                 .issue(
-                        org.mockito.ArgumentMatchers.anyLong(),
-                        org.mockito.ArgumentMatchers.any()
+                        anyLong(),
+                        any()
                 );
     }
 
@@ -180,6 +182,17 @@ class LoginServiceTest {
                         )
                 )
         );
+
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        );
+
+        verify(accessTokens, never())
+                .issue(
+                        anyLong(),
+                        any()
+                );
     }
 
     private void assertInvalidCredentials(

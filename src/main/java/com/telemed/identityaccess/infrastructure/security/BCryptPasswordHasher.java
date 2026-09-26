@@ -7,6 +7,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class BCryptPasswordHasher implements PasswordHasherPort {
 
+    private static final int BCRYPT_STRENGTH = 10;
+
+    private static final BCryptPasswordEncoder.BCryptVersion
+            BCRYPT_VERSION =
+            BCryptPasswordEncoder.BCryptVersion.$2A;
+
     private final BCryptPasswordEncoder encoder;
 
     public BCryptPasswordHasher() {
@@ -19,7 +25,13 @@ public class BCryptPasswordHasher implements PasswordHasherPort {
     }
 
     @Override
-    public boolean matches(String rawPassword, String passwordHash) {
-        return encoder.matches(rawPassword, passwordHash);
+    public boolean matches(
+            String rawPassword,
+            String passwordHash
+    ) {
+        return encoder.matches(
+                rawPassword,
+                passwordHash
+        );
     }
 }
