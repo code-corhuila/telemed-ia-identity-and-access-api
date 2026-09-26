@@ -18,8 +18,6 @@ import java.util.regex.Pattern;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
-    private static final String HEADER = "X-Correlation-Id";
-    private static final String MDC_KEY = "traceId";
     private static final Pattern SAFE_ID =
             Pattern.compile("[A-Za-z0-9._-]{1,128}");
 
@@ -29,23 +27,43 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String incomingId = request.getHeader(HEADER);
+
+        String incomingId =
+                request.getHeader(CorrelationContext.HEADER);
+
         String traceId = incomingId != null
                 && SAFE_ID.matcher(incomingId).matches()
                 ? incomingId
                 : UUID.randomUUID().toString();
 
-        String previousTraceId = MDC.get(MDC_KEY);
-        MDC.put(MDC_KEY, traceId);
-        response.setHeader(HEADER, traceId);
+        String previousTraceId =
+                MDC.get(CorrelationContext.MDC_KEY);
+
+        MDC.put(
+                CorrelationContext.MDC_KEY,
+                traceId
+        );
+
+        request.setAttribute(
+                CorrelationContext.REQUEST_ATTRIBUTE,
+                traceId
+        );
+
+        response.setHeader(
+                CorrelationContext.HEADER,
+                traceId
+        );
 
         try {
             filterChain.doFilter(request, response);
         } finally {
             if (previousTraceId == null) {
-                MDC.remove(MDC_KEY);
+                MDC.remove(CorrelationContext.MDC_KEY);
             } else {
-                MDC.put(MDC_KEY, previousTraceId);
+                MDC.put(
+                        CorrelationContext.MDC_KEY,
+                        previousTraceId
+                );
             }
         }
     }

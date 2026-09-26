@@ -1,7 +1,5 @@
 package com.telemed.identityaccess.adapter.in.http;
 
-import org.slf4j.MDC;
-
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +16,8 @@ public record ApiErrorResponse(
     public static ApiErrorResponse of(
             String error,
             String message,
-            Map<String, String> fieldErrors
+            Map<String, String> fieldErrors,
+            String traceId
     ) {
         List<FieldError> details = fieldErrors.entrySet().stream()
                 .map(entry -> new FieldError(
@@ -31,7 +30,7 @@ public record ApiErrorResponse(
                 error,
                 message,
                 details,
-                MDC.get("traceId")
+                traceId
         );
     }
 }

@@ -2,6 +2,7 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -21,8 +22,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RegistrationException.class)
     public ResponseEntity<ApiErrorResponse> handleRegistrationException(
-            RegistrationException exception
+            RegistrationException exception,
+            HttpServletRequest request
     ) {
+
+        String traceId = getTraceId(request);
 
         if (exception.reason()
                 == RegistrationException.Reason.INVALID_REGISTRATION) {
@@ -30,7 +34,8 @@ public class GlobalExceptionHandler {
             ApiErrorResponse response = ApiErrorResponse.of(
                     "INVALID_REGISTRATION",
                     "Registration data is invalid.",
-                    Map.of()
+                    Map.of(),
+                    traceId
             );
 
             return ResponseEntity
@@ -41,7 +46,8 @@ public class GlobalExceptionHandler {
         ApiErrorResponse response = ApiErrorResponse.of(
                 "REGISTRATION_CONFLICT",
                 "Registration cannot be completed with the provided data.",
-                Map.of()
+                Map.of(),
+                traceId
         );
 
         return ResponseEntity
@@ -51,8 +57,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
-            AuthenticationException exception
+            AuthenticationException exception,
+            HttpServletRequest request
     ) {
+
+        String traceId = getTraceId(request);
 
         return switch (exception.reason()) {
 
@@ -66,7 +75,8 @@ public class GlobalExceptionHandler {
                 ApiErrorResponse response = ApiErrorResponse.of(
                         "INVALID_CREDENTIALS",
                         "Invalid email or password.",
-                        Map.of()
+                        Map.of(),
+                        traceId
                 );
 
                 yield ResponseEntity
@@ -78,7 +88,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
-            MethodArgumentNotValidException exception
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request
     ) {
 
         Map<String, String> fieldErrors = new LinkedHashMap<>();
@@ -93,9 +104,10 @@ public class GlobalExceptionHandler {
                 );
 
         ApiErrorResponse response = ApiErrorResponse.of(
-                "INVALID_REQUEST",
+                "VALIDATION_ERROR",
                 "Request validation failed.",
-                fieldErrors
+                fieldErrors,
+                getTraceId(request)
         );
 
         return ResponseEntity
@@ -105,7 +117,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpectedException(
-            Exception exception
+            Exception exception,
+            HttpServletRequest request
     ) {
 
         log.error(
@@ -116,11 +129,22 @@ public class GlobalExceptionHandler {
         ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_ERROR",
                 "An unexpected error occurred.",
-                Map.of()
+                Map.of(),
+                getTraceId(request)
         );
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    private String getTraceId(HttpServletRequest request) {
+        Object traceId = request.getAttribute(
+                CorrelationContext.REQUEST_ATTRIBUTE
+        );
+
+        return traceId instanceof String
+                ? (String) traceId
+                : null;
     }
 }

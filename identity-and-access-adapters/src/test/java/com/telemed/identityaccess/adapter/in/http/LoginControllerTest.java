@@ -183,7 +183,7 @@ class LoginControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(
                         jsonPath("$.error")
-                                .value("INVALID_REQUEST")
+                                .value("VALIDATION_ERROR")
                 );
 
         verify(loginUseCase, never())
@@ -209,7 +209,7 @@ class LoginControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(
                         jsonPath("$.error")
-                                .value("INVALID_REQUEST")
+                                .value("VALIDATION_ERROR")
                 );
 
         verify(loginUseCase, never())
@@ -240,7 +240,9 @@ class LoginControllerTest {
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.fieldErrors").doesNotExist());
 
-        assertNull(org.slf4j.MDC.get("traceId"));
+        assertNull(
+        org.slf4j.MDC.get(CorrelationContext.MDC_KEY)
+);
     }
 
     @Test
@@ -256,7 +258,7 @@ class LoginControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("email"))
                 .andExpect(jsonPath("$.details[0].message").isNotEmpty())
                 .andReturn();
@@ -275,7 +277,9 @@ class LoginControllerTest {
                         result.getResponse().getContentAsString()
                 ).get("traceId").asText()
         );
-        assertNull(org.slf4j.MDC.get("traceId"));
+        assertNull(
+        org.slf4j.MDC.get(CorrelationContext.MDC_KEY)
+);
 
         verify(loginUseCase, never())
                 .login(any());
