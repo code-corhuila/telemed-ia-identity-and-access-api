@@ -35,16 +35,9 @@ public class LoginService implements LoginUseCase {
         User user = users.findByEmail(command.email())
                 .orElse(null);
 
-        boolean currentPasswordPolicy =
-                user != null
-                        && passwordHasher.usesCurrentPolicy(
-                                user.passwordHash()
-                        );
-
-        String passwordHash =
-                currentPasswordPolicy
-                        ? user.passwordHash()
-                        : dummyPasswordHash;
+        String passwordHash = user != null
+                ? user.passwordHash()
+                : dummyPasswordHash;
 
         boolean passwordMatches =
                 passwordHasher.matches(
@@ -53,7 +46,6 @@ public class LoginService implements LoginUseCase {
                 );
 
         if (user == null
-                || !currentPasswordPolicy
                 || !passwordMatches
                 || !user.active()) {
 

@@ -8,8 +8,4 @@ public interface PasswordHasherPort {
             String rawPassword,
             String passwordHash
     );
-
-    boolean usesCurrentPolicy(
-            String passwordHash
-    );
 }

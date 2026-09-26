@@ -64,10 +64,6 @@ class LoginServiceTest {
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
 
-        when(passwordHasher.usesCurrentPolicy(
-                user.passwordHash()
-        )).thenReturn(true);
-
         when(passwordHasher.matches(
                 "StrongPassword123!",
                 user.passwordHash()
@@ -156,10 +152,6 @@ class LoginServiceTest {
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
 
-        when(passwordHasher.usesCurrentPolicy(
-                user.passwordHash()
-        )).thenReturn(true);
-
         when(passwordHasher.matches(
                 "WrongPassword",
                 user.passwordHash()
@@ -203,10 +195,6 @@ class LoginServiceTest {
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
 
-        when(passwordHasher.usesCurrentPolicy(
-                user.passwordHash()
-        )).thenReturn(true);
-
         when(passwordHasher.matches(
                 "StrongPassword123!",
                 user.passwordHash()
@@ -224,48 +212,6 @@ class LoginServiceTest {
         verify(passwordHasher).matches(
                 "StrongPassword123!",
                 user.passwordHash()
-        );
-
-        verify(accessTokens, never())
-                .issue(
-                        anyLong(),
-                        any()
-                );
-    }
-
-    @Test
-    void shouldRejectUserWhosePasswordHashUsesOutdatedPolicy() {
-
-        User user = activePatient();
-
-        when(users.findByEmail("patient@example.com"))
-                .thenReturn(Optional.of(user));
-
-        when(passwordHasher.usesCurrentPolicy(
-                user.passwordHash()
-        )).thenReturn(false);
-
-        when(passwordHasher.matches(
-                "StrongPassword123!",
-                DUMMY_HASH
-        )).thenReturn(false);
-
-        assertInvalidCredentials(() ->
-                service.login(
-                        new LoginUseCase.Command(
-                                "patient@example.com",
-                                "StrongPassword123!"
-                        )
-                )
-        );
-
-        verify(passwordHasher).usesCurrentPolicy(
-                user.passwordHash()
-        );
-
-        verify(passwordHasher).matches(
-                "StrongPassword123!",
-                DUMMY_HASH
         );
 
         verify(accessTokens, never())
