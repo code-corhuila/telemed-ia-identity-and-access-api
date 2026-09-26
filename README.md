@@ -24,8 +24,9 @@ mvn -B clean verify
 
 Esta reorganización conserva Spring Boot 3.3.13 y el nivel de compilación Java 17.
 La actualización a la línea 3.5 del Anexo C se debe validar como cambio separado.
-CI utiliza JDK 21 conforme al Anexo I. Docker conserva JDK 17 para construcción
-y ejecución; el nivel de compilación sigue siendo Java 17.
+CI ejecuta compilación y pruebas con JDK 17 y JDK 21: valida la versión utilizada
+por Docker y cubre el requisito del Anexo I. Docker conserva JDK 17 para
+construcción y ejecución; el nivel de compilación sigue siendo Java 17.
 
 ## Ejecución
 
