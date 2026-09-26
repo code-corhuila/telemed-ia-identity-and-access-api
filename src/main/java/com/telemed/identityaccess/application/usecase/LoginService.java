@@ -35,19 +35,30 @@ public class LoginService implements LoginUseCase {
         User user = users.findByEmail(command.email())
                 .orElse(null);
 
-        String passwordHash = user != null
-                ? user.passwordHash()
-                : dummyPasswordHash;
+        boolean currentPasswordPolicy =
+                user != null
+                        && passwordHasher.usesCurrentPolicy(
+                                user.passwordHash()
+                        );
 
-        boolean passwordMatches = passwordHasher.matches(
-                command.password(),
-                passwordHash
-        );
+        String passwordHash =
+                currentPasswordPolicy
+                        ? user.passwordHash()
+                        : dummyPasswordHash;
+
+        boolean passwordMatches =
+                passwordHasher.matches(
+                        command.password(),
+                        passwordHash
+                );
 
         if (user == null
+                || !currentPasswordPolicy
                 || !passwordMatches
                 || !user.active()) {
-            throw AuthenticationException.invalidCredentials();
+
+            throw AuthenticationException
+                    .invalidCredentials();
         }
 
         AccessTokenProviderPort.IssuedAccessToken token =
