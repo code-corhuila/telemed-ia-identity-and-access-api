@@ -9,9 +9,13 @@ import com.telemed.identityaccess.domain.model.User;
 
 public class LoginService implements LoginUseCase {
 
+    private static final String DUMMY_PASSWORD =
+            "telemed-authentication-dummy-password";
+
     private final UserRepositoryPort users;
     private final PasswordHasherPort passwordHasher;
     private final AccessTokenProviderPort accessTokens;
+    private final String dummyPasswordHash;
 
     public LoginService(
             UserRepositoryPort users,
@@ -21,20 +25,28 @@ public class LoginService implements LoginUseCase {
         this.users = users;
         this.passwordHasher = passwordHasher;
         this.accessTokens = accessTokens;
+        this.dummyPasswordHash =
+                passwordHasher.hash(DUMMY_PASSWORD);
     }
 
     @Override
     public Result login(Command command) {
 
         User user = users.findByEmail(command.email())
-                .orElseThrow(AuthenticationException::invalidCredentials);
+                .orElse(null);
+
+        String passwordHash = user != null
+                ? user.passwordHash()
+                : dummyPasswordHash;
 
         boolean passwordMatches = passwordHasher.matches(
                 command.password(),
-                user.passwordHash()
+                passwordHash
         );
 
-        if (!passwordMatches || !user.active()) {
+        if (user == null
+                || !passwordMatches
+                || !user.active()) {
             throw AuthenticationException.invalidCredentials();
         }
 
