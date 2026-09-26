@@ -50,20 +50,31 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
-            AuthenticationException exception
-    ) {
+        public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
+                AuthenticationException exception
+        ) {
 
-        ApiErrorResponse response = new ApiErrorResponse(
-                "INVALID_CREDENTIALS",
-                "Invalid email or password.",
-                Map.of()
-        );
+        return switch (exception.reason()) {
 
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(response);
-    }
+                case INVALID_CREDENTIALS -> {
+
+                log.warn(
+                        "Authentication attempt rejected. reason={}",
+                        exception.reason()
+                );
+
+                ApiErrorResponse response = new ApiErrorResponse(
+                        "INVALID_CREDENTIALS",
+                        "Invalid email or password.",
+                        Map.of()
+                );
+
+                yield ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(response);
+                }
+        };
+        }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(

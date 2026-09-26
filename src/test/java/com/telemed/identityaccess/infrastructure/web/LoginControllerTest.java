@@ -125,6 +125,37 @@ class LoginControllerTest {
     }
 
     @Test
+void shouldDelegateLegacyLengthPasswordToUseCase()
+        throws Exception {
+
+    when(loginUseCase.login(any()))
+            .thenThrow(
+                    AuthenticationException
+                            .invalidCredentials()
+            );
+
+    String payload = """
+            {
+              "email": "patient@example.com",
+              "password": "old123"
+            }
+            """;
+
+    mockMvc.perform(
+                    post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload)
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(
+                    jsonPath("$.code")
+                            .value("INVALID_CREDENTIALS")
+            );
+
+    verify(loginUseCase).login(any());
+}
+
+    @Test
     void shouldRejectInvalidEmailBeforeCallingUseCase()
             throws Exception {
 
