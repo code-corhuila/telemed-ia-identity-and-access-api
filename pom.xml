@@ -72,6 +72,12 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- JWT access token support -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+        </dependency>
+
         <!-- Testcontainers integration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
