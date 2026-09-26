@@ -51,6 +51,21 @@ public class LoginService implements LoginUseCase {
             throw AuthenticationException.invalidCredentials();
         }
 
+        if (passwordHasher.needsRehash(
+                user.passwordHash()
+        )) {
+
+            String upgradedPasswordHash =
+                    passwordHasher.hash(
+                            command.password()
+                    );
+
+            users.updatePasswordHash(
+                    user.id(),
+                    upgradedPasswordHash
+            );
+        }
+
         AccessTokenProviderPort.IssuedAccessToken token =
                 accessTokens.issue(
                         user.id(),

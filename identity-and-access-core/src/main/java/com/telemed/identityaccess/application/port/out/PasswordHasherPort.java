@@ -8,4 +8,8 @@ public interface PasswordHasherPort {
             String rawPassword,
             String passwordHash
     );
+
+    boolean needsRehash(
+            String passwordHash
+    );
 }

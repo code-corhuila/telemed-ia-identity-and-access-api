@@ -153,6 +153,76 @@ class LoginServiceTest {
     }
 
     @Test
+void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
+
+    User user = activePatient();
+
+    when(users.findByEmail("patient@example.com"))
+            .thenReturn(Optional.of(user));
+
+    when(passwordHasher.matches(
+            "StrongPassword123!",
+            user.passwordHash()
+    )).thenReturn(true);
+
+    when(passwordHasher.needsRehash(
+            user.passwordHash()
+    )).thenReturn(true);
+
+    when(passwordHasher.hash(
+            "StrongPassword123!"
+    )).thenReturn(
+            "$2a$10$upgradedPasswordHash"
+    );
+
+    Instant expiresAt =
+            Instant.parse("2026-09-26T15:00:00Z");
+
+    when(accessTokens.issue(
+            10L,
+            Role.PATIENT
+    )).thenReturn(
+            new AccessTokenProviderPort.IssuedAccessToken(
+                    "access-token",
+                    expiresAt
+            )
+    );
+
+    LoginUseCase.Result result = service.login(
+            new LoginUseCase.Command(
+                    "patient@example.com",
+                    "StrongPassword123!"
+            )
+    );
+
+    verify(passwordHasher).matches(
+            "StrongPassword123!",
+            user.passwordHash()
+    );
+
+    verify(passwordHasher).needsRehash(
+            user.passwordHash()
+    );
+
+    verify(passwordHasher).hash(
+            "StrongPassword123!"
+    );
+
+    verify(users).updatePasswordHash(
+            10L,
+            "$2a$10$upgradedPasswordHash"
+    );
+
+    verify(accessTokens).issue(
+            10L,
+            Role.PATIENT
+    );
+
+    assertThat(result.accessToken())
+            .isEqualTo("access-token");
+}
+
+    @Test
     void shouldRejectInactiveUserWithGenericError() {
 
         User user = new User(
