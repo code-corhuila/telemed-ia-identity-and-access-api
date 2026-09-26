@@ -19,6 +19,8 @@ import java.util.Optional;
 import static com.telemed.identityaccess.application.exception.AuthenticationException.Reason.INVALID_CREDENTIALS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,7 +29,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
 
-    private static final String DUMMY_HASH = "$dummy-bcrypt-hash";
+    private static final String DUMMY_HASH =
+            "$dummy-bcrypt-hash";
 
     @Mock
     private UserRepositoryPort users;
@@ -42,6 +45,7 @@ class LoginServiceTest {
 
     @BeforeEach
     void setUp() {
+
         when(passwordHasher.hash(anyString()))
                 .thenReturn(DUMMY_HASH);
 
@@ -60,6 +64,10 @@ class LoginServiceTest {
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
 
+        when(passwordHasher.usesCurrentPolicy(
+                user.passwordHash()
+        )).thenReturn(true);
+
         when(passwordHasher.matches(
                 "StrongPassword123!",
                 user.passwordHash()
@@ -68,13 +76,15 @@ class LoginServiceTest {
         Instant expiresAt =
                 Instant.parse("2026-09-25T22:00:00Z");
 
-        when(accessTokens.issue(10L, Role.PATIENT))
-                .thenReturn(
-                        new AccessTokenProviderPort.IssuedAccessToken(
-                                "access-token",
-                                expiresAt
-                        )
-                );
+        when(accessTokens.issue(
+                10L,
+                Role.PATIENT
+        )).thenReturn(
+                new AccessTokenProviderPort.IssuedAccessToken(
+                        "access-token",
+                        expiresAt
+                )
+        );
 
         LoginUseCase.Result result = service.login(
                 new LoginUseCase.Command(
@@ -83,10 +93,27 @@ class LoginServiceTest {
                 )
         );
 
-        assertThat(result.userId()).isEqualTo(10L);
-        assertThat(result.role()).isEqualTo(Role.PATIENT);
-        assertThat(result.accessToken()).isEqualTo("access-token");
-        assertThat(result.expiresAt()).isEqualTo(expiresAt);
+        assertThat(result.userId())
+                .isEqualTo(10L);
+
+        assertThat(result.role())
+                .isEqualTo(Role.PATIENT);
+
+        assertThat(result.accessToken())
+                .isEqualTo("access-token");
+
+        assertThat(result.expiresAt())
+                .isEqualTo(expiresAt);
+
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        );
+
+        verify(accessTokens).issue(
+                10L,
+                Role.PATIENT
+        );
     }
 
     @Test
@@ -116,8 +143,8 @@ class LoginServiceTest {
 
         verify(accessTokens, never())
                 .issue(
-                        org.mockito.ArgumentMatchers.anyLong(),
-                        org.mockito.ArgumentMatchers.any()
+                        anyLong(),
+                        any()
                 );
     }
 
@@ -128,6 +155,10 @@ class LoginServiceTest {
 
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
+
+        when(passwordHasher.usesCurrentPolicy(
+                user.passwordHash()
+        )).thenReturn(true);
 
         when(passwordHasher.matches(
                 "WrongPassword",
@@ -143,10 +174,15 @@ class LoginServiceTest {
                 )
         );
 
+        verify(passwordHasher).matches(
+                "WrongPassword",
+                user.passwordHash()
+        );
+
         verify(accessTokens, never())
                 .issue(
-                        org.mockito.ArgumentMatchers.anyLong(),
-                        org.mockito.ArgumentMatchers.any()
+                        anyLong(),
+                        any()
                 );
     }
 
@@ -167,6 +203,10 @@ class LoginServiceTest {
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
 
+        when(passwordHasher.usesCurrentPolicy(
+                user.passwordHash()
+        )).thenReturn(true);
+
         when(passwordHasher.matches(
                 "StrongPassword123!",
                 user.passwordHash()
@@ -180,13 +220,68 @@ class LoginServiceTest {
                         )
                 )
         );
+
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        );
+
+        verify(accessTokens, never())
+                .issue(
+                        anyLong(),
+                        any()
+                );
+    }
+
+    @Test
+    void shouldRejectUserWhosePasswordHashUsesOutdatedPolicy() {
+
+        User user = activePatient();
+
+        when(users.findByEmail("patient@example.com"))
+                .thenReturn(Optional.of(user));
+
+        when(passwordHasher.usesCurrentPolicy(
+                user.passwordHash()
+        )).thenReturn(false);
+
+        when(passwordHasher.matches(
+                "StrongPassword123!",
+                DUMMY_HASH
+        )).thenReturn(false);
+
+        assertInvalidCredentials(() ->
+                service.login(
+                        new LoginUseCase.Command(
+                                "patient@example.com",
+                                "StrongPassword123!"
+                        )
+                )
+        );
+
+        verify(passwordHasher).usesCurrentPolicy(
+                user.passwordHash()
+        );
+
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                DUMMY_HASH
+        );
+
+        verify(accessTokens, never())
+                .issue(
+                        anyLong(),
+                        any()
+                );
     }
 
     private void assertInvalidCredentials(
             org.assertj.core.api.ThrowableAssert.ThrowingCallable operation
     ) {
+
         assertThatThrownBy(operation)
                 .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Invalid credentials.")
                 .satisfies(exception ->
                         assertThat(
                                 ((AuthenticationException) exception)
@@ -196,6 +291,7 @@ class LoginServiceTest {
     }
 
     private User activePatient() {
+
         return new User(
                 10L,
                 "Patient Test",
