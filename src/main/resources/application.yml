@@ -21,3 +21,9 @@ management:
     health:
       probes:
         enabled: true
+
+security:
+  jwt:
+    issuer: ${JWT_ISSUER:telemed-ia-identity-and-access}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+    secret-base64: ${JWT_SECRET_BASE64}

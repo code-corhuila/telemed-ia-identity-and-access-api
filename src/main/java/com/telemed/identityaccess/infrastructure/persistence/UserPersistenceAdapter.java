@@ -7,6 +7,8 @@ import com.telemed.identityaccess.domain.model.User;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
@@ -32,6 +34,12 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     @Override
     public boolean existsByIdentityDocument(String identityDocument) {
         return users.existsByIdentityDocument(identityDocument);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return users.findByEmailIgnoreCase(email)
+                .map(this::toDomain);
     }
 
     @Override
@@ -78,15 +86,19 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
             throw exception;
         }
 
+        return toDomain(saved);
+    }
+
+    private User toDomain(UserJpaEntity entity) {
         return new User(
-                saved.getId(),
-                saved.getFullName(),
-                saved.getEmail(),
-                saved.getIdentityDocument(),
-                saved.getPasswordHash(),
-                Role.valueOf(saved.getRole().getName()),
-                saved.isActive(),
-                saved.isVerified()
+                entity.getId(),
+                entity.getFullName(),
+                entity.getEmail(),
+                entity.getIdentityDocument(),
+                entity.getPasswordHash(),
+                Role.valueOf(entity.getRole().getName()),
+                entity.isActive(),
+                entity.isVerified()
         );
     }
 }
