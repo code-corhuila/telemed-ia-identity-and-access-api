@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
         if (exception.reason()
                 == RegistrationException.Reason.INVALID_REGISTRATION) {
 
-            ApiErrorResponse response = new ApiErrorResponse(
+            ApiErrorResponse response = ApiErrorResponse.of(
                     "INVALID_REGISTRATION",
                     "Registration data is invalid.",
                     Map.of()
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
                     .body(response);
         }
 
-        ApiErrorResponse response = new ApiErrorResponse(
+        ApiErrorResponse response = ApiErrorResponse.of(
                 "REGISTRATION_CONFLICT",
                 "Registration cannot be completed with the provided data.",
                 Map.of()
@@ -50,20 +50,20 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthenticationException.class)
-        public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
-                AuthenticationException exception
-        ) {
+    public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
+            AuthenticationException exception
+    ) {
 
         return switch (exception.reason()) {
 
-                case INVALID_CREDENTIALS -> {
+            case INVALID_CREDENTIALS -> {
 
                 log.warn(
                         "Authentication attempt rejected. reason={}",
                         exception.reason()
                 );
 
-                ApiErrorResponse response = new ApiErrorResponse(
+                ApiErrorResponse response = ApiErrorResponse.of(
                         "INVALID_CREDENTIALS",
                         "Invalid email or password.",
                         Map.of()
@@ -72,9 +72,9 @@ public class GlobalExceptionHandler {
                 yield ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(response);
-                }
+            }
         };
-        }
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        ApiErrorResponse response = new ApiErrorResponse(
+        ApiErrorResponse response = ApiErrorResponse.of(
                 "INVALID_REQUEST",
                 "Request validation failed.",
                 fieldErrors
@@ -113,7 +113,7 @@ public class GlobalExceptionHandler {
                 exception
         );
 
-        ApiErrorResponse response = new ApiErrorResponse(
+        ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_ERROR",
                 "An unexpected error occurred.",
                 Map.of()
