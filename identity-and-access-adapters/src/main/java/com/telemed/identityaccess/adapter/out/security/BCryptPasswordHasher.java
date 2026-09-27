@@ -16,7 +16,10 @@ public class BCryptPasswordHasher implements PasswordHasherPort {
     private final BCryptPasswordEncoder encoder;
 
     public BCryptPasswordHasher() {
-        this.encoder = new BCryptPasswordEncoder();
+        this.encoder = new BCryptPasswordEncoder(
+                BCRYPT_VERSION,
+                BCRYPT_STRENGTH
+        );
     }
 
     @Override
@@ -29,9 +32,39 @@ public class BCryptPasswordHasher implements PasswordHasherPort {
             String rawPassword,
             String passwordHash
     ) {
-        return encoder.matches(
-                rawPassword,
-                passwordHash
-        );
+
+        if (rawPassword == null
+                || passwordHash == null
+                || passwordHash.isBlank()) {
+            return false;
+        }
+
+        try {
+            return encoder.matches(
+                    rawPassword,
+                    passwordHash
+            );
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean needsRehash(
+            String passwordHash
+    ) {
+
+        if (passwordHash == null
+                || passwordHash.isBlank()) {
+            return false;
+        }
+
+        try {
+            return encoder.upgradeEncoding(
+                    passwordHash
+            );
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 }
