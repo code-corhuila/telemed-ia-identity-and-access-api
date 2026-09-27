@@ -16,7 +16,10 @@ public class BCryptPasswordHasher implements PasswordHasherPort {
     private final BCryptPasswordEncoder encoder;
 
     public BCryptPasswordHasher() {
-        this.encoder = new BCryptPasswordEncoder();
+        this.encoder = new BCryptPasswordEncoder(
+                BCRYPT_VERSION,
+                BCRYPT_STRENGTH
+        );
     }
 
     @Override

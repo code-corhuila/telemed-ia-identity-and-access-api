@@ -39,16 +39,18 @@ public class LoginService implements LoginUseCase {
                 ? user.passwordHash()
                 : dummyPasswordHash;
 
-        boolean passwordMatches = passwordHasher.matches(
-                command.password(),
-                passwordHash
-        );
-
+        boolean passwordMatches =
+                passwordHasher.matches(
+                        command.password(),
+                        passwordHash
+                );
 
         if (user == null
                 || !passwordMatches
                 || !user.active()) {
-            throw AuthenticationException.invalidCredentials();
+
+            throw AuthenticationException
+                    .invalidCredentials();
         }
 
         if (passwordHasher.needsRehash(

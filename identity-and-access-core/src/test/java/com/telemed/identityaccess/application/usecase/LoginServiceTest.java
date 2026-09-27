@@ -29,7 +29,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
 
-    private static final String DUMMY_HASH = "$dummy-bcrypt-hash";
+    private static final String DUMMY_HASH =
+            "$dummy-bcrypt-hash";
 
     @Mock
     private UserRepositoryPort users;
@@ -44,6 +45,7 @@ class LoginServiceTest {
 
     @BeforeEach
     void setUp() {
+
         when(passwordHasher.hash(anyString()))
                 .thenReturn(DUMMY_HASH);
 
@@ -70,13 +72,15 @@ class LoginServiceTest {
         Instant expiresAt =
                 Instant.parse("2026-09-25T22:00:00Z");
 
-        when(accessTokens.issue(10L, Role.PATIENT))
-                .thenReturn(
-                        new AccessTokenProviderPort.IssuedAccessToken(
-                                "access-token",
-                                expiresAt
-                        )
-                );
+        when(accessTokens.issue(
+                10L,
+                Role.PATIENT
+        )).thenReturn(
+                new AccessTokenProviderPort.IssuedAccessToken(
+                        "access-token",
+                        expiresAt
+                )
+        );
 
         LoginUseCase.Result result = service.login(
                 new LoginUseCase.Command(
@@ -85,10 +89,27 @@ class LoginServiceTest {
                 )
         );
 
-        assertThat(result.userId()).isEqualTo(10L);
-        assertThat(result.role()).isEqualTo(Role.PATIENT);
-        assertThat(result.accessToken()).isEqualTo("access-token");
-        assertThat(result.expiresAt()).isEqualTo(expiresAt);
+        assertThat(result.userId())
+                .isEqualTo(10L);
+
+        assertThat(result.role())
+                .isEqualTo(Role.PATIENT);
+
+        assertThat(result.accessToken())
+                .isEqualTo("access-token");
+
+        assertThat(result.expiresAt())
+                .isEqualTo(expiresAt);
+
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        );
+
+        verify(accessTokens).issue(
+                10L,
+                Role.PATIENT
+        );
     }
 
     @Test
@@ -143,6 +164,11 @@ class LoginServiceTest {
                                 "WrongPassword"
                         )
                 )
+        );
+
+        verify(passwordHasher).matches(
+                "WrongPassword",
+                user.passwordHash()
         );
 
         verify(accessTokens, never())
@@ -268,8 +294,10 @@ void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
     private void assertInvalidCredentials(
             org.assertj.core.api.ThrowableAssert.ThrowingCallable operation
     ) {
+
         assertThatThrownBy(operation)
                 .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Invalid credentials.")
                 .satisfies(exception ->
                         assertThat(
                                 ((AuthenticationException) exception)
@@ -279,6 +307,7 @@ void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
     }
 
     private User activePatient() {
+
         return new User(
                 10L,
                 "Patient Test",
