@@ -2,6 +2,7 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -21,16 +22,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RegistrationException.class)
     public ResponseEntity<ApiErrorResponse> handleRegistrationException(
-            RegistrationException exception
+            RegistrationException exception,
+            HttpServletRequest request
     ) {
+
+        String traceId = getTraceId(request);
 
         if (exception.reason()
                 == RegistrationException.Reason.INVALID_REGISTRATION) {
 
-            ApiErrorResponse response = new ApiErrorResponse(
+            ApiErrorResponse response = ApiErrorResponse.of(
                     "INVALID_REGISTRATION",
                     "Registration data is invalid.",
-                    Map.of()
+                    Map.of(),
+                    traceId
             );
 
             return ResponseEntity
@@ -38,10 +43,11 @@ public class GlobalExceptionHandler {
                     .body(response);
         }
 
-        ApiErrorResponse response = new ApiErrorResponse(
+        ApiErrorResponse response = ApiErrorResponse.of(
                 "REGISTRATION_CONFLICT",
                 "Registration cannot be completed with the provided data.",
-                Map.of()
+                Map.of(),
+                traceId
         );
 
         return ResponseEntity
@@ -51,23 +57,39 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiErrorResponse> handleAuthenticationException(
-            AuthenticationException exception
+            AuthenticationException exception,
+            HttpServletRequest request
     ) {
 
-        ApiErrorResponse response = new ApiErrorResponse(
-                "INVALID_CREDENTIALS",
-                "Invalid email or password.",
-                Map.of()
-        );
+        String traceId = getTraceId(request);
 
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(response);
+        return switch (exception.reason()) {
+
+            case INVALID_CREDENTIALS -> {
+
+                log.warn(
+                        "Authentication attempt rejected. reason={}",
+                        exception.reason()
+                );
+
+                ApiErrorResponse response = ApiErrorResponse.of(
+                        "INVALID_CREDENTIALS",
+                        "Invalid email or password.",
+                        Map.of(),
+                        traceId
+                );
+
+                yield ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(response);
+            }
+        };
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
-            MethodArgumentNotValidException exception
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request
     ) {
 
         Map<String, String> fieldErrors = new LinkedHashMap<>();
@@ -81,10 +103,11 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        ApiErrorResponse response = new ApiErrorResponse(
-                "INVALID_REQUEST",
+        ApiErrorResponse response = ApiErrorResponse.of(
+                "VALIDATION_ERROR",
                 "Request validation failed.",
-                fieldErrors
+                fieldErrors,
+                getTraceId(request)
         );
 
         return ResponseEntity
@@ -94,7 +117,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpectedException(
-            Exception exception
+            Exception exception,
+            HttpServletRequest request
     ) {
 
         log.error(
@@ -102,14 +126,25 @@ public class GlobalExceptionHandler {
                 exception
         );
 
-        ApiErrorResponse response = new ApiErrorResponse(
+        ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_ERROR",
                 "An unexpected error occurred.",
-                Map.of()
+                Map.of(),
+                getTraceId(request)
         );
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    private String getTraceId(HttpServletRequest request) {
+        Object traceId = request.getAttribute(
+                CorrelationContext.REQUEST_ATTRIBUTE
+        );
+
+        return traceId instanceof String
+                ? (String) traceId
+                : null;
     }
 }
