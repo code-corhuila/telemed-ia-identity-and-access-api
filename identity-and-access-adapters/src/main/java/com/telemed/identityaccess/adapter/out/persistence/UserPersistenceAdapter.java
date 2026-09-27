@@ -43,6 +43,25 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     }
 
     @Override
+public void updatePasswordHash(
+        Long userId,
+        String passwordHash
+) {
+
+    int updatedRows =
+            users.updatePasswordHashById(
+                    userId,
+                    passwordHash
+            );
+
+    if (updatedRows != 1) {
+        throw new IllegalStateException(
+                "Password hash could not be updated."
+        );
+    }
+}
+
+    @Override
     public User save(User user) {
 
         RoleJpaEntity role = roles.findByName(user.role().name())
