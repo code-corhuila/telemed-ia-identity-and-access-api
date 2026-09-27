@@ -1,4 +1,4 @@
-package com.telemed.identityaccess.adapter.in.http;
+package com.telemed.identityaccess.infrastructure.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
