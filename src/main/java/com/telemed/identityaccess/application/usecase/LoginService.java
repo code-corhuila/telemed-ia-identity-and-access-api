@@ -44,6 +44,7 @@ public class LoginService implements LoginUseCase {
                 passwordHash
         );
 
+
         if (user == null
                 || !passwordMatches
                 || !user.active()) {
