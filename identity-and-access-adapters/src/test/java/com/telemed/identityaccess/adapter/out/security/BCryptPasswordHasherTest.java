@@ -109,6 +109,17 @@ class BCryptPasswordHasherTest {
     }
 
     @Test
+void shouldRejectMalformedPasswordHashWithoutThrowing() {
+
+    assertFalse(
+            hasher.matches(
+                    "Secret123!",
+                    "not-a-valid-bcrypt-hash"
+            )
+    );
+}
+
+    @Test
     void shouldRejectIncorrectPasswordAgainstLegacyHash() {
 
         BCryptPasswordEncoder legacyEncoder =
