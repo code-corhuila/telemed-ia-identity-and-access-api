@@ -1,7 +1,10 @@
-target
+**/target
 .git
 .github
 .idea
 .vscode
 *.iml
-README.md
+.env
+.env.*
+**/*.pem
+**/*.key
