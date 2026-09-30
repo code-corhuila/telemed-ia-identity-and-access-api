@@ -3,6 +3,7 @@ package com.telemed.identityaccess.application.port.in;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.domain.model.Role;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -18,6 +19,9 @@ public interface RegisterPatientUseCase {
             String identityDocument,
             String password
     ) {
+
+        private static final int MIN_PASSWORD_CHARACTERS = 8;
+        private static final int MAX_BCRYPT_PASSWORD_BYTES = 72;
 
         public Command {
             fullName = requireText(
@@ -35,10 +39,7 @@ public interface RegisterPatientUseCase {
                     "Identity document is required."
             );
 
-            password = requireText(
-                    password,
-                    "Password is required."
-            );
+            password = requirePassword(password);
         }
 
         private static String requireText(
@@ -53,6 +54,41 @@ public interface RegisterPatientUseCase {
             }
 
             return value.trim();
+        }
+
+        private static String requirePassword(String value) {
+
+            if (value == null || value.isBlank()) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password is required."
+                );
+            }
+
+            int characterCount = value.codePointCount(
+                    0,
+                    value.length()
+            );
+
+            if (characterCount < MIN_PASSWORD_CHARACTERS) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password must contain at least 8 characters."
+                );
+            }
+
+            int utf8ByteLength = value
+                    .getBytes(StandardCharsets.UTF_8)
+                    .length;
+
+            if (utf8ByteLength > MAX_BCRYPT_PASSWORD_BYTES) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password must not exceed 72 UTF-8 bytes."
+                );
+            }
+
+            return value;
         }
 
         @Override
