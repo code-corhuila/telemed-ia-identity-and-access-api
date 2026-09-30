@@ -3,6 +3,7 @@ package com.telemed.identityaccess.application.port.in;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.domain.model.Role;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -18,6 +19,9 @@ public interface RegisterPatientUseCase {
             String identityDocument,
             String password
     ) {
+
+        private static final int MIN_PASSWORD_CHARACTERS = 8;
+        private static final int MAX_BCRYPT_PASSWORD_BYTES = 72;
 
         public Command {
             fullName = requireText(
@@ -54,19 +58,37 @@ public interface RegisterPatientUseCase {
 
         private static String requirePassword(String value) {
 
-        String password = requireText(
-                value,
-                "Password is required."
-        );
-
-        if (password.length() < 8 || password.length() > 72) {
+            if (value == null || value.isBlank()) {
                 throw new RegistrationException(
                         INVALID_REGISTRATION,
-                        "Password must contain between 8 and 72 characters."
+                        "Password is required."
                 );
-        }
+            }
 
-        return password;
+            int characterCount = value.codePointCount(
+                    0,
+                    value.length()
+            );
+
+            if (characterCount < MIN_PASSWORD_CHARACTERS) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password must contain at least 8 characters."
+                );
+            }
+
+            int utf8ByteLength = value
+                    .getBytes(StandardCharsets.UTF_8)
+                    .length;
+
+            if (utf8ByteLength > MAX_BCRYPT_PASSWORD_BYTES) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password must not exceed 72 UTF-8 bytes."
+                );
+            }
+
+            return value;
         }
 
         @Override
