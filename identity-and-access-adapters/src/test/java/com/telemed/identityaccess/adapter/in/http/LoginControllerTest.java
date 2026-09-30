@@ -13,6 +13,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -33,6 +34,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class LoginControllerTest {
 
+    private static final UUID USER_ID = UUID.fromString(
+            "11111111-1111-4111-8111-111111111111"
+    );
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -52,7 +57,7 @@ class LoginControllerTest {
         when(loginUseCase.login(any()))
                 .thenReturn(
                         new LoginUseCase.Result(
-                                10L,
+                                USER_ID,
                                 Role.PATIENT,
                                 "signed-access-token",
                                 expiresAt
@@ -74,8 +79,14 @@ class LoginControllerTest {
                                 )
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(10))
-                .andExpect(jsonPath("$.role").value("PATIENT"))
+                .andExpect(
+                        jsonPath("$.userId")
+                                .value(USER_ID.toString())
+                )
+                .andExpect(
+                        jsonPath("$.role")
+                                .value("PATIENT")
+                )
                 .andExpect(
                         jsonPath("$.accessToken")
                                 .value("signed-access-token")
@@ -217,101 +228,162 @@ class LoginControllerTest {
     }
 
     @Test
-    void shouldReuseCorrelationIdInErrorResponse() throws Exception {
-        when(loginUseCase.login(any()))
-                .thenThrow(AuthenticationException.invalidCredentials());
+    void shouldReuseCorrelationIdInErrorResponse()
+            throws Exception {
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .header("X-Correlation-Id", "request-123")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "patient@example.com",
-                                  "password": "WrongPassword"
-                                }
-                                """))
+        when(loginUseCase.login(any()))
+                .thenThrow(
+                        AuthenticationException
+                                .invalidCredentials()
+                );
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .header(
+                                        "X-Correlation-Id",
+                                        "request-123"
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "email": "patient@example.com",
+                                          "password": "WrongPassword"
+                                        }
+                                        """)
+                )
                 .andExpect(status().isUnauthorized())
-                .andExpect(result -> assertEquals(
-                        "request-123",
-                        result.getResponse().getHeader("X-Correlation-Id")))
-                .andExpect(jsonPath("$.traceId").value("request-123"))
-                .andExpect(jsonPath("$.error").value("INVALID_CREDENTIALS"))
-                .andExpect(jsonPath("$.details").isArray())
-                .andExpect(jsonPath("$.code").doesNotExist())
-                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+                .andExpect(result ->
+                        assertEquals(
+                                "request-123",
+                                result.getResponse()
+                                        .getHeader(
+                                                "X-Correlation-Id"
+                                        )
+                        )
+                )
+                .andExpect(
+                        jsonPath("$.traceId")
+                                .value("request-123")
+                )
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("INVALID_CREDENTIALS")
+                )
+                .andExpect(
+                        jsonPath("$.details")
+                                .isArray()
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.fieldErrors")
+                                .doesNotExist()
+                );
 
         assertNull(
-        org.slf4j.MDC.get(CorrelationContext.MDC_KEY)
-);
+                org.slf4j.MDC.get(
+                        CorrelationContext.MDC_KEY
+                )
+        );
     }
 
     @Test
     void shouldGenerateCorrelationIdAndReturnValidationDetails()
             throws Exception {
 
-        var result = mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "invalid-email",
-                                  "password": "StrongPassword123!"
-                                }
-                                """))
+        var result = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "email": "invalid-email",
+                                          "password": "StrongPassword123!"
+                                        }
+                                        """)
+                )
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.details[0].field").value("email"))
-                .andExpect(jsonPath("$.details[0].message").isNotEmpty())
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("VALIDATION_ERROR")
+                )
+                .andExpect(
+                        jsonPath("$.details[0].field")
+                                .value("email")
+                )
+                .andExpect(
+                        jsonPath("$.details[0].message")
+                                .isNotEmpty()
+                )
                 .andReturn();
 
         String traceId =
-                result.getResponse().getHeader("X-Correlation-Id");
+                result.getResponse()
+                        .getHeader("X-Correlation-Id");
 
         assertNotNull(traceId);
+
         assertEquals(
                 traceId,
-                java.util.UUID.fromString(traceId).toString()
+                UUID.fromString(traceId).toString()
         );
+
         assertEquals(
                 traceId,
                 objectMapper.readTree(
-                        result.getResponse().getContentAsString()
+                        result.getResponse()
+                                .getContentAsString()
                 ).get("traceId").asText()
         );
+
         assertNull(
-        org.slf4j.MDC.get(CorrelationContext.MDC_KEY)
-);
+                org.slf4j.MDC.get(
+                        CorrelationContext.MDC_KEY
+                )
+        );
 
         verify(loginUseCase, never())
                 .login(any());
     }
 
     @Test
-    void shouldReplaceInvalidCorrelationId() throws Exception {
+    void shouldReplaceInvalidCorrelationId()
+            throws Exception {
 
-        var result = mockMvc.perform(post("/api/v1/auth/login")
-                        .header("X-Correlation-Id", "invalid id")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "patient@example.com",
-                                  "password": ""
-                                }
-                                """))
+        var result = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .header(
+                                        "X-Correlation-Id",
+                                        "invalid id"
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "email": "patient@example.com",
+                                          "password": ""
+                                        }
+                                        """)
+                )
                 .andExpect(status().isBadRequest())
                 .andReturn();
 
         String traceId =
-                result.getResponse().getHeader("X-Correlation-Id");
+                result.getResponse()
+                        .getHeader("X-Correlation-Id");
 
         assertNotNull(traceId);
+
         assertEquals(
                 traceId,
-                java.util.UUID.fromString(traceId).toString()
+                UUID.fromString(traceId).toString()
         );
+
         assertEquals(
                 traceId,
                 objectMapper.readTree(
-                        result.getResponse().getContentAsString()
+                        result.getResponse()
+                                .getContentAsString()
                 ).get("traceId").asText()
         );
 

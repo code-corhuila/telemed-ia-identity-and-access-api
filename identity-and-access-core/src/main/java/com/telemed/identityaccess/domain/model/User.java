@@ -1,7 +1,9 @@
 package com.telemed.identityaccess.domain.model;
 
+import java.util.UUID;
+
 public record User(
-        Long id,
+        UUID id,
         String fullName,
         String email,
         String identityDocument,
