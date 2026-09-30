@@ -217,4 +217,28 @@ void shouldRegisterPatientUsingUuidIdentifier() {
                 commandText.contains("password=***")
         );
     }
+
+    @Test
+void shouldRejectPasswordShorterThanEightCharacters() {
+
+    var exception = assertThrows(
+            RegistrationException.class,
+            () -> new RegisterPatientUseCase.Command(
+                    "Maria Patient",
+                    "patient@example.com",
+                    "123456789",
+                    "Ab1!xyz"
+            )
+    );
+
+    assertEquals(
+            INVALID_REGISTRATION,
+            exception.reason()
+    );
+
+    assertEquals(
+            "Password must contain at least 8 characters.",
+            exception.getMessage()
+    );
+}
 }
