@@ -35,10 +35,7 @@ public interface RegisterPatientUseCase {
                     "Identity document is required."
             );
 
-            password = requireText(
-                    password,
-                    "Password is required."
-            );
+            password = requirePassword(password);
         }
 
         private static String requireText(
@@ -53,6 +50,23 @@ public interface RegisterPatientUseCase {
             }
 
             return value.trim();
+        }
+
+        private static String requirePassword(String value) {
+
+            String password = requireText(
+                    value,
+                    "Password is required."
+            );
+
+            if (password.length() < 8) {
+                throw new RegistrationException(
+                        INVALID_REGISTRATION,
+                        "Password must contain at least 8 characters."
+                );
+            }
+
+            return password;
         }
 
         @Override
