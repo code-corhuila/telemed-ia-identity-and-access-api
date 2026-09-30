@@ -62,16 +62,18 @@ class JwtAccessTokenProviderTest {
         JwtProperties properties = new JwtProperties(
                 "telemed-ia-identity-and-access",
                 Duration.ofHours(1),
-                "unused-private-key-path",
-                "unused-public-key-path"
+                null,
+                null,
+                null,
+                null
         );
 
         JwtAccessTokenProvider provider =
                 new JwtAccessTokenProvider(
                         properties,
-                        privateKey,
+                        clock,
                         publicKey,
-                        clock
+                        privateKey
                 );
 
         AccessTokenProviderPort.IssuedAccessToken issued =
@@ -80,8 +82,10 @@ class JwtAccessTokenProviderTest {
                         Role.PATIENT
                 );
 
-        Jwt jwt = decoder(publicKey, clock)
-                .decode(issued.value());
+        Jwt jwt = decoder(
+                publicKey,
+                clock
+        ).decode(issued.value());
 
         assertThat(jwt.getHeaders().get("alg"))
                 .isEqualTo("RS256");
@@ -92,7 +96,7 @@ class JwtAccessTokenProviderTest {
         assertThat(jwt.getClaimAsString("role"))
                 .isEqualTo("PATIENT");
 
-        assertThat(jwt.getIssuer())
+        assertThat(jwt.getClaimAsString("iss"))
                 .isEqualTo(
                         "telemed-ia-identity-and-access"
                 );
@@ -102,7 +106,9 @@ class JwtAccessTokenProviderTest {
 
         assertThat(jwt.getExpiresAt())
                 .isEqualTo(
-                        issuedAt.plus(Duration.ofHours(1))
+                        issuedAt.plus(
+                                Duration.ofHours(1)
+                        )
                 );
 
         assertThat(jwt.getId())
@@ -127,16 +133,18 @@ class JwtAccessTokenProviderTest {
         JwtProperties properties = new JwtProperties(
                 "telemed-ia-identity-and-access",
                 Duration.ofHours(1),
-                "unused-private-key-path",
-                "unused-public-key-path"
+                null,
+                null,
+                null,
+                null
         );
 
         JwtAccessTokenProvider provider =
                 new JwtAccessTokenProvider(
                         properties,
-                        privateKey,
+                        clock,
                         publicKey,
-                        clock
+                        privateKey
                 );
 
         String token = provider.issue(
@@ -169,8 +177,10 @@ class JwtAccessTokenProviderTest {
                 new JwtProperties(
                         "telemed-ia-identity-and-access",
                         Duration.ZERO,
-                        "private.pem",
-                        "public.pem"
+                        null,
+                        null,
+                        null,
+                        null
                 )
         )
                 .isInstanceOf(IllegalArgumentException.class)
