@@ -198,47 +198,72 @@ void shouldRegisterPatientUsingUuidIdentifier() {
     }
 
     @Test
-    void shouldRedactPasswordFromCommandToString() {
+        void shouldRedactPasswordFromCommandToString() {
 
-        var command = new RegisterPatientUseCase.Command(
-                "Maria Patient",
-                "patient@example.com",
-                "123456789",
-                "Secret123!"
+                var command = new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        "patient@example.com",
+                        "123456789",
+                        "Secret123!"
+                );
+
+                String commandText = command.toString();
+
+                assertFalse(
+                        commandText.contains("Secret123!")
+                );
+
+                assertTrue(
+                        commandText.contains("password=***")
+                );
+        }
+
+        @Test
+        void shouldRejectPasswordShorterThanEightCharacters() {
+
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        "patient@example.com",
+                        "123456789",
+                        "Ab1!xyz"
+                )
         );
 
-        String commandText = command.toString();
-
-        assertFalse(
-                commandText.contains("Secret123!")
+        assertEquals(
+                INVALID_REGISTRATION,
+                exception.reason()
         );
 
-        assertTrue(
-                commandText.contains("password=***")
+        assertEquals(
+                "Password must contain at least 8 characters.",
+                exception.getMessage()
         );
-    }
+        }
+        @Test
+        void shouldRejectPasswordLongerThanSeventyTwoCharacters() {
 
-    @Test
-void shouldRejectPasswordShorterThanEightCharacters() {
+        String password = "A".repeat(73);
 
-    var exception = assertThrows(
-            RegistrationException.class,
-            () -> new RegisterPatientUseCase.Command(
-                    "Maria Patient",
-                    "patient@example.com",
-                    "123456789",
-                    "Ab1!xyz"
-            )
-    );
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        "patient@example.com",
+                        "123456789",
+                        password
+                )
+        );
 
-    assertEquals(
-            INVALID_REGISTRATION,
-            exception.reason()
-    );
+        assertEquals(
+                INVALID_REGISTRATION,
+                exception.reason()
+        );
 
-    assertEquals(
-            "Password must contain at least 8 characters.",
-            exception.getMessage()
-    );
-}
+        assertEquals(
+                "Password must contain between 8 and 72 characters.",
+                exception.getMessage()
+        );
+        }
 }
