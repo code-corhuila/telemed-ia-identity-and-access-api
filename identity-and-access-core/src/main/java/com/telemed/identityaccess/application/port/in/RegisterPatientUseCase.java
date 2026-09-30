@@ -54,19 +54,19 @@ public interface RegisterPatientUseCase {
 
         private static String requirePassword(String value) {
 
-            String password = requireText(
-                    value,
-                    "Password is required."
-            );
+        String password = requireText(
+                value,
+                "Password is required."
+        );
 
-            if (password.length() < 8) {
+        if (password.length() < 8 || password.length() > 72) {
                 throw new RegistrationException(
                         INVALID_REGISTRATION,
-                        "Password must contain at least 8 characters."
+                        "Password must contain between 8 and 72 characters."
                 );
-            }
+        }
 
-            return password;
+        return password;
         }
 
         @Override

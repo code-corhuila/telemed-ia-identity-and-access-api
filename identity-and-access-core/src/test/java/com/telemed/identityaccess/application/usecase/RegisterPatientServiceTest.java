@@ -236,9 +236,9 @@ void shouldRegisterPatientUsingUuidIdentifier() {
                 exception.reason()
         );
 
-        assertEquals(
-                "Password must contain at least 8 characters.",
-                exception.getMessage()
+      assertEquals(
+        "Password must contain between 8 and 72 characters.",
+        exception.getMessage()
         );
         }
         @Test
