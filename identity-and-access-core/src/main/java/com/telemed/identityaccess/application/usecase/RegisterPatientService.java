@@ -6,7 +6,6 @@ import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.domain.model.User;
 
-
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
@@ -33,7 +32,9 @@ public class RegisterPatientService implements RegisterPatientUseCase {
             );
         }
 
-        if (users.existsByIdentityDocument(command.identityDocument())) {
+        if (users.existsByIdentityDocument(
+                command.identityDocument()
+        )) {
             throw new RegistrationException(
                     IDENTITY_DOCUMENT_ALREADY_REGISTERED,
                     "Identity document is already registered."
