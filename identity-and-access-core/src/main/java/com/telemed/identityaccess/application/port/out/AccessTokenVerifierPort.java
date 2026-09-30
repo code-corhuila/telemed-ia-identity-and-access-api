@@ -9,6 +9,11 @@ public interface AccessTokenVerifierPort {
 
     VerifiedAccessToken verify(String token);
 
-    record VerifiedAccessToken(UUID userId, Role role, Instant expiresAt) {
+    record VerifiedAccessToken(
+            UUID userId,
+            Role role,
+            String tokenId,
+            Instant expiresAt
+    ) {
     }
 }
