@@ -7,7 +7,7 @@ import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.junit.jupiter.api.Test;
-
+import java.util.UUID;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
@@ -17,63 +17,73 @@ import static org.mockito.Mockito.*;
 
 class RegisterPatientServiceTest {
 
-    @Test
-    void shouldRegisterPatientWithNormalizedEmailAndHashedPassword() {
+@Test
+void shouldRegisterPatientUsingUuidIdentifier() {
 
-        UserRepositoryPort users = mock(UserRepositoryPort.class);
-        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+    UUID savedUserId = UUID.fromString(
+            "11111111-1111-4111-8111-111111111111"
+    );
 
-        when(users.existsByEmail("patient@example.com"))
-                .thenReturn(false);
+    UserRepositoryPort users = mock(UserRepositoryPort.class);
+    PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
 
-        when(users.existsByIdentityDocument("123456789"))
-                .thenReturn(false);
+    when(users.existsByEmail("patient@example.com"))
+            .thenReturn(false);
 
-        when(passwordHasher.hash("Secret123!"))
-                .thenReturn("$2a$10$hashed-password");
+    when(users.existsByIdentityDocument("123456789"))
+            .thenReturn(false);
 
-        when(users.save(any(User.class)))
-                .thenAnswer(invocation -> {
-                    User user = invocation.getArgument(0);
+    when(passwordHasher.hash("Secret123!"))
+            .thenReturn("$2a$10$hashed-password");
 
-                    return new User(
-                            1L,
-                            user.fullName(),
-                            user.email(),
-                            user.identityDocument(),
-                            user.passwordHash(),
-                            user.role(),
-                            user.active(),
-                            user.verified()
-                    );
-                });
+    when(users.save(any(User.class)))
+            .thenAnswer(invocation -> {
+                User user = invocation.getArgument(0);
 
-        RegisterPatientUseCase useCase =
-                new RegisterPatientService(users, passwordHasher);
+                return new User(
+                        savedUserId,
+                        user.fullName(),
+                        user.email(),
+                        user.identityDocument(),
+                        user.passwordHash(),
+                        user.role(),
+                        user.active(),
+                        user.verified()
+                );
+            });
 
-        var command = new RegisterPatientUseCase.Command(
-                "Maria Patient",
-                "  PATIENT@example.com ",
-                "123456789",
-                "Secret123!"
-        );
+    RegisterPatientUseCase useCase =
+            new RegisterPatientService(
+                    users,
+                    passwordHasher
+            );
 
-        var result = useCase.register(command);
+    var command = new RegisterPatientUseCase.Command(
+            "Maria Patient",
+            "  PATIENT@example.com ",
+            "123456789",
+            "Secret123!"
+    );
 
-        assertEquals(1L, result.userId());
-        assertEquals(Role.PATIENT, result.role());
+    var result = useCase.register(command);
 
-        verify(passwordHasher).hash("Secret123!");
+    assertEquals(savedUserId, result.userId());
+    assertEquals(Role.PATIENT, result.role());
 
-        verify(users).save(argThat(user ->
-                user.email().equals("patient@example.com")
-                        && user.passwordHash().equals("$2a$10$hashed-password")
-                        && !user.passwordHash().equals("Secret123!")
-                        && user.role() == Role.PATIENT
-                        && user.active()
-                        && !user.verified()
-        ));
-    }
+    verify(passwordHasher)
+            .hash("Secret123!");
+
+    verify(users).save(argThat(user ->
+            user.email().equals("patient@example.com")
+                    && user.passwordHash()
+                    .equals("$2a$10$hashed-password")
+                    && !user.passwordHash()
+                    .equals("Secret123!")
+                    && user.role() == Role.PATIENT
+                    && user.active()
+                    && !user.verified()
+    ));
+}
 
     @Test
     void shouldRejectRegistrationWhenEmailAlreadyExists() {
