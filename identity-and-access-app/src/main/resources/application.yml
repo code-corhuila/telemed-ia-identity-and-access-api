@@ -44,5 +44,8 @@ management:
 security:
   jwt:
     issuer: ${JWT_ISSUER:telemed-ia-identity-and-access}
-    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
-    secret-base64: ${JWT_SECRET_BASE64}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT1H}
+    private-key: ${JWT_PRIVATE_KEY:}
+    private-key-file: ${JWT_PRIVATE_KEY_FILE:}
+    public-key: ${JWT_PUBLIC_KEY:}
+    public-key-file: ${JWT_PUBLIC_KEY_FILE:}
