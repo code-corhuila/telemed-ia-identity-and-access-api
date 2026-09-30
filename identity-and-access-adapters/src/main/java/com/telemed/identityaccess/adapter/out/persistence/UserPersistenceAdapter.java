@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
@@ -43,23 +44,21 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     }
 
     @Override
-public void updatePasswordHash(
-        Long userId,
-        String passwordHash
-) {
-
-    int updatedRows =
-            users.updatePasswordHashById(
-                    userId,
-                    passwordHash
-            );
-
-    if (updatedRows != 1) {
-        throw new IllegalStateException(
-                "Password hash could not be updated."
+    public void updatePasswordHash(
+            UUID userId,
+            String passwordHash
+    ) {
+        int updatedRows = users.updatePasswordHashById(
+                userId,
+                passwordHash
         );
+
+        if (updatedRows != 1) {
+            throw new IllegalStateException(
+                    "Password hash could not be updated."
+            );
+        }
     }
-}
 
     @Override
     public User save(User user) {
@@ -71,7 +70,12 @@ public void updatePasswordHash(
                         )
                 );
 
+        UUID userId = user.id() != null
+                ? user.id()
+                : UUID.randomUUID();
+
         UserJpaEntity entity = new UserJpaEntity(
+                userId,
                 user.fullName(),
                 user.email(),
                 user.identityDocument(),
@@ -95,7 +99,9 @@ public void updatePasswordHash(
                 );
             }
 
-            if (users.existsByIdentityDocument(user.identityDocument())) {
+            if (users.existsByIdentityDocument(
+                    user.identityDocument()
+            )) {
                 throw new RegistrationException(
                         IDENTITY_DOCUMENT_ALREADY_REGISTERED,
                         "Identity document is already registered."
