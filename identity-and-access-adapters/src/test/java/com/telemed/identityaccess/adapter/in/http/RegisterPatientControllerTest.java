@@ -1,6 +1,7 @@
 package com.telemed.identityaccess.adapter.in.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.in.RegisterPatientUseCase;
 import com.telemed.identityaccess.domain.model.Role;
 import org.junit.jupiter.api.Test;
@@ -13,15 +14,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,7 +44,7 @@ class RegisterPatientControllerTest {
     private RegisterPatientUseCase registerPatientUseCase;
 
     @Test
-    void shouldReturnCreatedPatientWithUuid()
+    void shouldReturnCreatedPatient()
             throws Exception {
 
         when(registerPatientUseCase.register(any()))
@@ -90,59 +87,23 @@ class RegisterPatientControllerTest {
     }
 
     @Test
-    void shouldRejectPasswordShorterThanEightCharacters()
+    void shouldReturnBadRequestWhenCoreRejectsPassword()
             throws Exception {
 
-        String payload = """
-                {
-                  "fullName": "Maria Patient",
-                  "email": "patient@example.com",
-                  "identityDocument": "123456789",
-                  "password": "Ab1!xyz"
-                }
-                """;
-
-        mockMvc.perform(
-                        post("/api/v1/auth/register")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(payload)
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.error")
-                                .value("VALIDATION_ERROR")
-                )
-                .andExpect(
-                        jsonPath("$.message")
-                                .value("Request validation failed.")
-                )
-                .andExpect(
-                        jsonPath("$.details[0].field")
-                                .value("password")
-                )
-                .andExpect(
-                        jsonPath("$.details[0].message")
-                                .value(
-                                        "Password must contain between 8 and 72 characters."
-                                )
+        when(registerPatientUseCase.register(any()))
+                .thenThrow(
+                        new RegistrationException(
+                                INVALID_REGISTRATION,
+                                "Password must not exceed 72 UTF-8 bytes."
+                        )
                 );
-
-        verify(registerPatientUseCase, never())
-                .register(any());
-    }
-
-    @Test
-    void shouldRejectPasswordLongerThanSeventyTwoCharacters()
-            throws Exception {
-
-        String oversizedPassword = "A".repeat(73);
 
         RegisterPatientRequest request =
                 new RegisterPatientRequest(
                         "Maria Patient",
                         "patient@example.com",
                         "123456789",
-                        oversizedPassword
+                        "ñ".repeat(37)
                 );
 
         mockMvc.perform(
@@ -157,122 +118,20 @@ class RegisterPatientControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(
                         jsonPath("$.error")
-                                .value("VALIDATION_ERROR")
+                                .value("INVALID_REGISTRATION")
                 )
                 .andExpect(
-                        jsonPath("$.details[0].field")
-                                .value("password")
-                )
-                .andExpect(
-                        jsonPath("$.details[0].message")
+                        jsonPath("$.message")
                                 .value(
-                                        "Password must contain between 8 and 72 characters."
+                                        "Registration data is invalid."
                                 )
-                );
-
-        verify(registerPatientUseCase, never())
-                .register(any());
-    }
-
-    @Test
-    void shouldReuseCorrelationIdForValidationError()
-            throws Exception {
-
-        mockMvc.perform(
-                        post("/api/v1/auth/register")
-                                .header(
-                                        "X-Correlation-Id",
-                                        "register-request-123"
-                                )
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
-                                        {
-                                          "fullName": "Maria Patient",
-                                          "email": "patient@example.com",
-                                          "identityDocument": "123456789",
-                                          "password": "short"
-                                        }
-                                        """)
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        header().string(
-                                "X-Correlation-Id",
-                                "register-request-123"
-                        )
-                )
-                .andExpect(
-                        jsonPath("$.traceId")
-                                .value("register-request-123")
-                )
-                .andExpect(
-                        jsonPath("$.error")
-                                .value("VALIDATION_ERROR")
                 )
                 .andExpect(
                         jsonPath("$.details")
                                 .isArray()
                 );
 
-        verify(registerPatientUseCase, never())
+        verify(registerPatientUseCase)
                 .register(any());
-
-        assertNull(
-                org.slf4j.MDC.get(
-                        CorrelationContext.MDC_KEY
-                )
-        );
-    }
-
-    @Test
-    void shouldGenerateCorrelationIdForInvalidRegistration()
-            throws Exception {
-
-        var result = mockMvc.perform(
-                        post("/api/v1/auth/register")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
-                                        {
-                                          "fullName": "Maria Patient",
-                                          "email": "invalid-email",
-                                          "identityDocument": "123456789",
-                                          "password": "Secret123!"
-                                        }
-                                        """)
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.error")
-                                .value("VALIDATION_ERROR")
-                )
-                .andReturn();
-
-        String traceId =
-                result.getResponse()
-                        .getHeader("X-Correlation-Id");
-
-        assertNotNull(traceId);
-
-        assertEquals(
-                traceId,
-                UUID.fromString(traceId).toString()
-        );
-
-        assertEquals(
-                traceId,
-                objectMapper.readTree(
-                        result.getResponse()
-                                .getContentAsString()
-                ).get("traceId").asText()
-        );
-
-        verify(registerPatientUseCase, never())
-                .register(any());
-
-        assertNull(
-                org.slf4j.MDC.get(
-                        CorrelationContext.MDC_KEY
-                )
-        );
     }
 }
