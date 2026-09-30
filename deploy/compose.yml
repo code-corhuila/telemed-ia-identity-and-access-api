@@ -19,9 +19,11 @@ services:
 
       JWT_ISSUER: ${JWT_ISSUER:-telemed-ia-identity-and-access}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT1H}
+
+      # Paths inside the container.
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem
 
     volumes:
-      - ${JWT_PRIVATE_KEY_FILE:?Set JWT_PRIVATE_KEY_FILE to a host PEM path}:/run/secrets/jwt-private.pem:ro
-      - ${JWT_PUBLIC_KEY_FILE:?Set JWT_PUBLIC_KEY_FILE to a host PEM path}:/run/secrets/jwt-public.pem:ro
+      - ${JWT_PRIVATE_KEY_HOST_FILE:?Set JWT_PRIVATE_KEY_HOST_FILE}:/run/secrets/jwt-private.pem:ro
+      - ${JWT_PUBLIC_KEY_HOST_FILE:?Set JWT_PUBLIC_KEY_HOST_FILE}:/run/secrets/jwt-public.pem:ro
