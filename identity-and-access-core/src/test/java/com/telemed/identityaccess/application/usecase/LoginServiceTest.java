@@ -7,6 +7,7 @@ import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
+import com.telemed.identityaccess.domain.model.RefreshToken;
 import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +34,10 @@ class LoginServiceTest {
 
     private static final String DUMMY_HASH =
             "$dummy-bcrypt-hash";
+
+    private static final String REFRESH_TOKEN_HASH =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     private static final UUID USER_ID = UUID.fromString(
             "11111111-1111-4111-8111-111111111111"
@@ -103,7 +108,7 @@ class LoginServiceTest {
                 .thenReturn(
                         new RefreshTokenProviderPort.IssuedRefreshToken(
                                 "plain-refresh-token",
-                                "hashed-refresh-token",
+                                REFRESH_TOKEN_HASH,
                                 refreshExpiresAt
                         )
                 );
@@ -146,9 +151,11 @@ class LoginServiceTest {
         verify(refreshTokens).issue();
 
         verify(refreshTokenRepository).save(
-                USER_ID,
-                "hashed-refresh-token",
-                refreshExpiresAt
+                RefreshToken.active(
+                        USER_ID,
+                        REFRESH_TOKEN_HASH,
+                        refreshExpiresAt
+                )
         );
     }
 
@@ -188,9 +195,7 @@ class LoginServiceTest {
 
         verify(refreshTokenRepository, never())
                 .save(
-                        any(UUID.class),
-                        anyString(),
-                        any(Instant.class)
+                        any(RefreshToken.class)
                 );
     }
 
@@ -232,9 +237,7 @@ class LoginServiceTest {
 
         verify(refreshTokenRepository, never())
                 .save(
-                        any(UUID.class),
-                        anyString(),
-                        any(Instant.class)
+                        any(RefreshToken.class)
                 );
     }
 
@@ -281,7 +284,7 @@ class LoginServiceTest {
                 .thenReturn(
                         new RefreshTokenProviderPort.IssuedRefreshToken(
                                 "plain-refresh-token",
-                                "hashed-refresh-token",
+                                REFRESH_TOKEN_HASH,
                                 refreshExpiresAt
                         )
                 );
@@ -319,9 +322,11 @@ class LoginServiceTest {
         verify(refreshTokens).issue();
 
         verify(refreshTokenRepository).save(
-                USER_ID,
-                "hashed-refresh-token",
-                refreshExpiresAt
+                RefreshToken.active(
+                        USER_ID,
+                        REFRESH_TOKEN_HASH,
+                        refreshExpiresAt
+                )
         );
 
         assertThat(result.accessToken())
@@ -378,9 +383,7 @@ class LoginServiceTest {
 
         verify(refreshTokenRepository, never())
                 .save(
-                        any(UUID.class),
-                        anyString(),
-                        any(Instant.class)
+                        any(RefreshToken.class)
                 );
     }
 
