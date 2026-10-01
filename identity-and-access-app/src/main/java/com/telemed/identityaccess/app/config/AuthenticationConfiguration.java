@@ -1,12 +1,14 @@
 package com.telemed.identityaccess.app.config;
 
+import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenProvider;
+import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenVerifier;
+import com.telemed.identityaccess.adapter.out.security.JwtProperties;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.application.usecase.LoginService;
-import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenProvider;
-import com.telemed.identityaccess.adapter.out.security.JwtProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +32,15 @@ public class AuthenticationConfiguration {
         return new JwtAccessTokenProvider(
                 properties,
                 authenticationClock
+        );
+    }
+
+    @Bean
+    AccessTokenVerifierPort accessTokenVerifier(
+            JwtProperties properties
+    ) {
+        return new JwtAccessTokenVerifier(
+                properties
         );
     }
 
