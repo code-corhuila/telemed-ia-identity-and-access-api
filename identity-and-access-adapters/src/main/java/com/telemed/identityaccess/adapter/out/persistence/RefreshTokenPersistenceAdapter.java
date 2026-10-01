@@ -1,12 +1,13 @@
 package com.telemed.identityaccess.adapter.out.persistence;
 
+import com.telemed.identityaccess.application.exception.RefreshTokenPersistenceException;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
+import com.telemed.identityaccess.domain.model.RefreshToken;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.UUID;
 
 @Repository
 public class RefreshTokenPersistenceAdapter
@@ -21,22 +22,21 @@ public class RefreshTokenPersistenceAdapter
     }
 
     @Override
-    public void save(
-            UUID userId,
-            String tokenHash,
-            Instant expiresAt
-    ) {
+    public void save(RefreshToken refreshToken) {
 
         RefreshTokenJpaEntity entity =
-                new RefreshTokenJpaEntity(
-                        userId,
-                        tokenHash,
-                        OffsetDateTime.ofInstant(
-                                expiresAt,
-                                ZoneOffset.UTC
-                        )
+                RefreshTokenJpaEntity.fromDomain(
+                        refreshToken
                 );
 
-        tokens.saveAndFlush(entity);
+        try {
+            tokens.saveAndFlush(entity);
+
+        } catch (DataAccessException exception) {
+            throw new RefreshTokenPersistenceException(
+                    "Refresh token could not be persisted.",
+                    exception
+            );
+        }
     }
 }

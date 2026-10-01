@@ -1,13 +1,8 @@
 package com.telemed.identityaccess.application.port.out;
 
-import java.time.Instant;
-import java.util.UUID;
+import com.telemed.identityaccess.domain.model.RefreshToken;
 
 public interface RefreshTokenRepositoryPort {
 
-    void save(
-            UUID userId,
-            String tokenHash,
-            Instant expiresAt
-    );
+    void save(RefreshToken refreshToken);
 }
