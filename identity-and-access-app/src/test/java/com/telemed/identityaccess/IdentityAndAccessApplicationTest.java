@@ -3,6 +3,7 @@ package com.telemed.identityaccess;
 import com.telemed.identityaccess.adapter.out.persistence.SpringDataRoleRepository;
 import com.telemed.identityaccess.adapter.out.persistence.SpringDataUserRepository;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -24,6 +25,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private AccessTokenProviderPort accessTokenProvider;
+
+    @MockBean
+    private AccessTokenVerifierPort accessTokenVerifier;
 
     @Test
     void contextLoads() {
