@@ -11,7 +11,9 @@ public record LoginResponse(
         String role,
         String accessToken,
         String tokenType,
-        Instant expiresAt
+        Instant expiresAt,
+        String refreshToken,
+        Instant refreshExpiresAt
 ) {
 
     private static final String TOKEN_TYPE = "Bearer";
@@ -24,7 +26,9 @@ public record LoginResponse(
                 toApiRole(result.role()),
                 result.accessToken(),
                 TOKEN_TYPE,
-                result.expiresAt()
+                result.expiresAt(),
+                result.refreshToken(),
+                result.refreshExpiresAt()
         );
     }
 

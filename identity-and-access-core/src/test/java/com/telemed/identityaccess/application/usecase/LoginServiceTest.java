@@ -4,6 +4,8 @@ import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
@@ -45,6 +47,12 @@ class LoginServiceTest {
     @Mock
     private AccessTokenProviderPort accessTokens;
 
+    @Mock
+    private RefreshTokenProviderPort refreshTokens;
+
+    @Mock
+    private RefreshTokenRepositoryPort refreshTokenRepository;
+
     private LoginService service;
 
     @BeforeEach
@@ -56,7 +64,9 @@ class LoginServiceTest {
         service = new LoginService(
                 users,
                 passwordHasher,
-                accessTokens
+                accessTokens,
+                refreshTokens,
+                refreshTokenRepository
         );
     }
 
@@ -73,7 +83,7 @@ class LoginServiceTest {
                 user.passwordHash()
         )).thenReturn(true);
 
-        Instant expiresAt =
+        Instant accessExpiresAt =
                 Instant.parse("2026-09-25T22:00:00Z");
 
         when(accessTokens.issue(
@@ -82,9 +92,21 @@ class LoginServiceTest {
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
                         "access-token",
-                        expiresAt
+                        accessExpiresAt
                 )
         );
+
+        Instant refreshExpiresAt =
+                Instant.parse("2026-10-02T22:00:00Z");
+
+        when(refreshTokens.issue())
+                .thenReturn(
+                        new RefreshTokenProviderPort.IssuedRefreshToken(
+                                "plain-refresh-token",
+                                "hashed-refresh-token",
+                                refreshExpiresAt
+                        )
+                );
 
         LoginUseCase.Result result = service.login(
                 new LoginUseCase.Command(
@@ -103,7 +125,13 @@ class LoginServiceTest {
                 .isEqualTo("access-token");
 
         assertThat(result.expiresAt())
-                .isEqualTo(expiresAt);
+                .isEqualTo(accessExpiresAt);
+
+        assertThat(result.refreshToken())
+                .isEqualTo("plain-refresh-token");
+
+        assertThat(result.refreshExpiresAt())
+                .isEqualTo(refreshExpiresAt);
 
         verify(passwordHasher).matches(
                 "StrongPassword123!",
@@ -113,6 +141,14 @@ class LoginServiceTest {
         verify(accessTokens).issue(
                 USER_ID,
                 Role.PATIENT
+        );
+
+        verify(refreshTokens).issue();
+
+        verify(refreshTokenRepository).save(
+                USER_ID,
+                "hashed-refresh-token",
+                refreshExpiresAt
         );
     }
 
@@ -145,6 +181,16 @@ class LoginServiceTest {
                 .issue(
                         any(UUID.class),
                         any()
+                );
+
+        verify(refreshTokens, never())
+                .issue();
+
+        verify(refreshTokenRepository, never())
+                .save(
+                        any(UUID.class),
+                        anyString(),
+                        any(Instant.class)
                 );
     }
 
@@ -180,6 +226,16 @@ class LoginServiceTest {
                         any(UUID.class),
                         any()
                 );
+
+        verify(refreshTokens, never())
+                .issue();
+
+        verify(refreshTokenRepository, never())
+                .save(
+                        any(UUID.class),
+                        anyString(),
+                        any(Instant.class)
+                );
     }
 
     @Test
@@ -205,7 +261,7 @@ class LoginServiceTest {
                 "$2a$10$upgradedPasswordHash"
         );
 
-        Instant expiresAt =
+        Instant accessExpiresAt =
                 Instant.parse("2026-09-26T15:00:00Z");
 
         when(accessTokens.issue(
@@ -214,9 +270,21 @@ class LoginServiceTest {
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
                         "access-token",
-                        expiresAt
+                        accessExpiresAt
                 )
         );
+
+        Instant refreshExpiresAt =
+                Instant.parse("2026-10-03T15:00:00Z");
+
+        when(refreshTokens.issue())
+                .thenReturn(
+                        new RefreshTokenProviderPort.IssuedRefreshToken(
+                                "plain-refresh-token",
+                                "hashed-refresh-token",
+                                refreshExpiresAt
+                        )
+                );
 
         LoginUseCase.Result result = service.login(
                 new LoginUseCase.Command(
@@ -248,8 +316,19 @@ class LoginServiceTest {
                 Role.PATIENT
         );
 
+        verify(refreshTokens).issue();
+
+        verify(refreshTokenRepository).save(
+                USER_ID,
+                "hashed-refresh-token",
+                refreshExpiresAt
+        );
+
         assertThat(result.accessToken())
                 .isEqualTo("access-token");
+
+        assertThat(result.refreshToken())
+                .isEqualTo("plain-refresh-token");
     }
 
     @Test
@@ -292,6 +371,16 @@ class LoginServiceTest {
                 .issue(
                         any(UUID.class),
                         any()
+                );
+
+        verify(refreshTokens, never())
+                .issue();
+
+        verify(refreshTokenRepository, never())
+                .save(
+                        any(UUID.class),
+                        anyString(),
+                        any(Instant.class)
                 );
     }
 
