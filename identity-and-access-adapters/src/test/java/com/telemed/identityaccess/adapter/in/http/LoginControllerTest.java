@@ -48,11 +48,14 @@ class LoginControllerTest {
     private LoginUseCase loginUseCase;
 
     @Test
-    void shouldReturnAccessTokenForValidCredentials()
+    void shouldReturnTokensForValidCredentials()
             throws Exception {
 
         Instant expiresAt =
                 Instant.parse("2026-09-26T00:00:00Z");
+
+        Instant refreshExpiresAt =
+                Instant.parse("2026-10-03T00:00:00Z");
 
         when(loginUseCase.login(any()))
                 .thenReturn(
@@ -60,7 +63,9 @@ class LoginControllerTest {
                                 USER_ID,
                                 Role.PATIENT,
                                 "signed-access-token",
-                                expiresAt
+                                expiresAt,
+                                "plain-refresh-token",
+                                refreshExpiresAt
                         )
                 );
 
@@ -99,6 +104,18 @@ class LoginControllerTest {
                         jsonPath("$.expiresAt")
                                 .value(
                                         "2026-09-26T00:00:00Z"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.refreshToken")
+                                .value(
+                                        "plain-refresh-token"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.refreshExpiresAt")
+                                .value(
+                                        "2026-10-03T00:00:00Z"
                                 )
                 );
 

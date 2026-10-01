@@ -3,10 +3,14 @@ package com.telemed.identityaccess.app.config;
 import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenProvider;
 import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenVerifier;
 import com.telemed.identityaccess.adapter.out.security.JwtProperties;
+import com.telemed.identityaccess.adapter.out.security.RefreshTokenProperties;
+import com.telemed.identityaccess.adapter.out.security.SecureRefreshTokenProvider;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.application.usecase.LoginService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,7 +20,10 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({
+        JwtProperties.class,
+        RefreshTokenProperties.class
+})
 public class AuthenticationConfiguration {
 
     @Bean
@@ -45,15 +52,30 @@ public class AuthenticationConfiguration {
     }
 
     @Bean
+    RefreshTokenProviderPort refreshTokenProvider(
+            RefreshTokenProperties properties,
+            Clock authenticationClock
+    ) {
+        return new SecureRefreshTokenProvider(
+                properties,
+                authenticationClock
+        );
+    }
+
+    @Bean
     LoginUseCase loginUseCase(
             UserRepositoryPort users,
             PasswordHasherPort passwordHasher,
-            AccessTokenProviderPort accessTokens
+            AccessTokenProviderPort accessTokens,
+            RefreshTokenProviderPort refreshTokens,
+            RefreshTokenRepositoryPort refreshTokenRepository
     ) {
         return new LoginService(
                 users,
                 passwordHasher,
-                accessTokens
+                accessTokens,
+                refreshTokens,
+                refreshTokenRepository
         );
     }
 }
