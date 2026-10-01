@@ -14,7 +14,8 @@ import static com.telemed.identityaccess.application.exception.RegistrationExcep
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
 @Repository
-public class UserPersistenceAdapter implements UserRepositoryPort {
+public class UserPersistenceAdapter
+        implements UserRepositoryPort {
 
     private final SpringDataUserRepository users;
     private final SpringDataRoleRepository roles;
@@ -33,13 +34,27 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     }
 
     @Override
-    public boolean existsByIdentityDocument(String identityDocument) {
-        return users.existsByIdentityDocument(identityDocument);
+    public boolean existsByIdentityDocument(
+            String identityDocument
+    ) {
+        return users.existsByIdentityDocument(
+                identityDocument
+        );
     }
 
     @Override
-    public Optional<User> findByEmail(String email) {
+    public Optional<User> findByEmail(
+            String email
+    ) {
         return users.findByEmailIgnoreCase(email)
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Optional<User> findById(
+            UUID userId
+    ) {
+        return users.findById(userId)
                 .map(this::toDomain);
     }
 
@@ -48,10 +63,12 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
             UUID userId,
             String passwordHash
     ) {
-        int updatedRows = users.updatePasswordHashById(
-                userId,
-                passwordHash
-        );
+
+        int updatedRows =
+                users.updatePasswordHashById(
+                        userId,
+                        passwordHash
+                );
 
         if (updatedRows != 1) {
             throw new IllegalStateException(
@@ -63,36 +80,45 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     @Override
     public User save(User user) {
 
-        RoleJpaEntity role = roles.findByName(user.role().name())
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "Required role is not configured."
+        RoleJpaEntity role =
+                roles.findByName(
+                                user.role().name()
                         )
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Required role is not configured."
+                                )
+                        );
+
+        UUID userId =
+                user.id() != null
+                        ? user.id()
+                        : UUID.randomUUID();
+
+        UserJpaEntity entity =
+                new UserJpaEntity(
+                        userId,
+                        user.fullName(),
+                        user.email(),
+                        user.identityDocument(),
+                        role,
+                        user.passwordHash(),
+                        user.verified(),
+                        user.active()
                 );
-
-        UUID userId = user.id() != null
-                ? user.id()
-                : UUID.randomUUID();
-
-        UserJpaEntity entity = new UserJpaEntity(
-                userId,
-                user.fullName(),
-                user.email(),
-                user.identityDocument(),
-                role,
-                user.passwordHash(),
-                user.verified(),
-                user.active()
-        );
 
         UserJpaEntity saved;
 
         try {
-            saved = users.saveAndFlush(entity);
+            saved = users.saveAndFlush(
+                    entity
+            );
 
         } catch (DataIntegrityViolationException exception) {
 
-            if (users.existsByEmailIgnoreCase(user.email())) {
+            if (users.existsByEmailIgnoreCase(
+                    user.email()
+            )) {
                 throw new RegistrationException(
                         EMAIL_ALREADY_REGISTERED,
                         "Email is already registered."
@@ -114,14 +140,19 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
         return toDomain(saved);
     }
 
-    private User toDomain(UserJpaEntity entity) {
+    private User toDomain(
+            UserJpaEntity entity
+    ) {
+
         return new User(
                 entity.getId(),
                 entity.getFullName(),
                 entity.getEmail(),
                 entity.getIdentityDocument(),
                 entity.getPasswordHash(),
-                Role.valueOf(entity.getRole().getName()),
+                Role.valueOf(
+                        entity.getRole().getName()
+                ),
                 entity.isActive(),
                 entity.isVerified()
         );
