@@ -1,21 +1,34 @@
 package com.telemed.identityaccess.adapter.in.http;
 
-import com.telemed.identityaccess.domain.model.Role;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(AuthRoutes.BASE)
 public class SessionController {
 
-    @GetMapping("/session")
+    @GetMapping(AuthRoutes.SESSION)
     public SessionResponse session(HttpServletRequest request) {
-        UUID userId = (UUID) request.getAttribute(AuthenticatedRequestContext.USER_ID_ATTRIBUTE);
-        Role role = (Role) request.getAttribute(AuthenticatedRequestContext.ROLE_ATTRIBUTE);
-        return new SessionResponse(userId, role);
+
+        AuthenticatedPrincipal principal =
+                AuthenticatedRequestContext.require(request);
+
+        return new SessionResponse(
+                principal.userId(),
+                toApiRole(principal.role())
+        );
+    }
+
+    private static String toApiRole(
+            com.telemed.identityaccess.domain.model.Role role
+    ) {
+        return switch (role) {
+            case PATIENT -> "PATIENT";
+            case PROFESSIONAL -> "PROFESSIONAL";
+            case ADMIN -> "ADMIN";
+        };
     }
 }
