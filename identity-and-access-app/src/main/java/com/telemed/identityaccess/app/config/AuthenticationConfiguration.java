@@ -28,6 +28,9 @@ import com.telemed.identityaccess.application.usecase.RefreshSessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.telemed.identityaccess.application.port.in.PasswordResetUseCase;
+import com.telemed.identityaccess.application.port.out.PasswordResetTokenHasherPort;
+import com.telemed.identityaccess.application.usecase.PasswordResetService;
 
 import java.time.Clock;
 
@@ -54,6 +57,23 @@ public class AuthenticationConfiguration {
                 authenticationClock
         );
     }
+
+@Bean
+PasswordResetUseCase passwordResetUseCase(
+        PasswordResetTokenRepositoryPort resetTokens,
+        PasswordResetTokenHasherPort tokenHasher,
+        UserRepositoryPort users,
+        PasswordHasherPort passwordHasher,
+        Clock authenticationClock
+) {
+    return new PasswordResetService(
+            resetTokens,
+            tokenHasher,
+            users,
+            passwordHasher,
+            authenticationClock
+    );
+}
 
     @Bean
     AccessTokenVerifierPort accessTokenVerifier(
