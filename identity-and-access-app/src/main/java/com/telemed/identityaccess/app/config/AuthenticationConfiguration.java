@@ -20,7 +20,8 @@ import com.telemed.identityaccess.application.usecase.RefreshSessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+import com.telemed.identityaccess.application.port.in.LogoutUseCase;
+import com.telemed.identityaccess.application.usecase.LogoutService;
 import java.time.Clock;
 
 @Configuration
@@ -87,6 +88,17 @@ public class AuthenticationConfiguration {
                 refreshTokenRepository
         );
     }
+
+    @Bean
+LogoutUseCase logoutUseCase(
+        RefreshTokenRepositoryPort refreshTokens,
+        RefreshTokenHasherPort refreshTokenHasher
+) {
+    return new LogoutService(
+            refreshTokens,
+            refreshTokenHasher
+    );
+}
 
     @Bean
     RefreshSessionUseCase refreshSessionUseCase(

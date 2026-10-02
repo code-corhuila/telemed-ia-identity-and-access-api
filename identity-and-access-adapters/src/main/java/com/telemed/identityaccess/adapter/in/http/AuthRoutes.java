@@ -11,11 +11,17 @@ public final class AuthRoutes {
     public static final String REFRESH =
             "/refresh";
 
+    public static final String LOGOUT =
+            "/logout";
+
     public static final String SESSION_PATH =
             BASE + SESSION;
 
     public static final String REFRESH_PATH =
             BASE + REFRESH;
+
+    public static final String LOGOUT_PATH =
+            BASE + LOGOUT;
 
     private AuthRoutes() {
     }

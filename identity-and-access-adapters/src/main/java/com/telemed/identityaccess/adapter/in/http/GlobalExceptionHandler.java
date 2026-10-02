@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.telemed.identityaccess.application.exception.RefreshSessionException;
+import com.telemed.identityaccess.application.exception.LogoutException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -96,6 +97,24 @@ public ResponseEntity<ApiErrorResponse> handleRefreshSessionException(
     ApiErrorResponse response = ApiErrorResponse.of(
             "INVALID_REFRESH_TOKEN",
             "Refresh token is invalid or expired.",
+            Map.of(),
+            getTraceId(request)
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(response);
+}
+
+@ExceptionHandler(LogoutException.class)
+public ResponseEntity<ApiErrorResponse> handleLogoutException(
+        LogoutException exception,
+        HttpServletRequest request
+) {
+
+    ApiErrorResponse response = ApiErrorResponse.of(
+            "INVALID_REFRESH_TOKEN",
+            "Refresh token is invalid.",
             Map.of(),
             getTraceId(request)
     );
