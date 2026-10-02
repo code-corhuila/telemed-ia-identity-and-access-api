@@ -49,3 +49,6 @@ security:
     private-key-file: ${JWT_PRIVATE_KEY_FILE:}
     public-key: ${JWT_PUBLIC_KEY:}
     public-key-file: ${JWT_PUBLIC_KEY_FILE:}
+
+  refresh-token:
+    ttl: ${REFRESH_TOKEN_TTL:P7D}
