@@ -97,6 +97,36 @@ public class RefreshTokenPersistenceAdapter
         }
     }
 
+    @Override
+    @Transactional
+    public void revokeByTokenHash(
+            String tokenHash
+    ) {
+
+        try {
+            int revokedRows =
+                    tokens.revokeByTokenHash(
+                            tokenHash
+                    );
+
+            if (revokedRows != 1) {
+                throw new RefreshTokenPersistenceException(
+                        "Refresh token could not be revoked.",
+                        null
+                );
+            }
+
+        } catch (RefreshTokenPersistenceException exception) {
+            throw exception;
+
+        } catch (DataAccessException exception) {
+            throw new RefreshTokenPersistenceException(
+                    "Refresh token could not be revoked.",
+                    exception
+            );
+        }
+    }
+
     private RefreshToken toDomain(
             RefreshTokenJpaEntity entity
     ) {

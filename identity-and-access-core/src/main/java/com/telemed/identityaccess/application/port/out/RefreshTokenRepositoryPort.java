@@ -16,4 +16,8 @@ public interface RefreshTokenRepositoryPort {
             String currentTokenHash,
             RefreshToken replacement
     );
+
+    void revokeByTokenHash(
+            String tokenHash
+    );
 }

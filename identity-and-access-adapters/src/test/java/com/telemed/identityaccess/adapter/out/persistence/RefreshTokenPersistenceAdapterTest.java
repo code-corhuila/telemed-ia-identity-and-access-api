@@ -225,4 +225,51 @@ class RefreshTokenPersistenceAdapterTest {
         assertThat(saved.isRevoked())
                 .isFalse();
     }
+
+    @Test
+void shouldRevokeRefreshTokenByHash() {
+
+    RefreshTokenPersistenceAdapter adapter =
+            new RefreshTokenPersistenceAdapter(
+                    repository
+            );
+
+    when(repository.revokeByTokenHash(
+            CURRENT_HASH
+    )).thenReturn(1);
+
+    adapter.revokeByTokenHash(
+            CURRENT_HASH
+    );
+
+    verify(repository)
+            .revokeByTokenHash(
+                    CURRENT_HASH
+            );
+}
+
+@Test
+void shouldFailWhenRefreshTokenCannotBeRevoked() {
+
+    RefreshTokenPersistenceAdapter adapter =
+            new RefreshTokenPersistenceAdapter(
+                    repository
+            );
+
+    when(repository.revokeByTokenHash(
+            CURRENT_HASH
+    )).thenReturn(0);
+
+    assertThatThrownBy(
+            () -> adapter.revokeByTokenHash(
+                    CURRENT_HASH
+            )
+    )
+            .isInstanceOf(
+                    RefreshTokenPersistenceException.class
+            )
+            .hasMessage(
+                    "Refresh token could not be revoked."
+            );
+}
 }
