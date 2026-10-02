@@ -52,3 +52,6 @@ security:
 
   refresh-token:
     ttl: ${REFRESH_TOKEN_TTL:P7D}
+
+  password-reset-token:
+    ttl: ${PASSWORD_RESET_TOKEN_TTL:PT30M}
