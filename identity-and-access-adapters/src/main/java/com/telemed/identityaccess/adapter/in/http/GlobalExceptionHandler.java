@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.telemed.identityaccess.application.exception.RefreshSessionException;
 import com.telemed.identityaccess.application.exception.LogoutException;
-
+import com.telemed.identityaccess.application.exception.PasswordResetException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -87,6 +87,41 @@ public class GlobalExceptionHandler {
             }
         };
     }
+
+    @ExceptionHandler(PasswordResetException.class)
+public ResponseEntity<ApiErrorResponse> handlePasswordResetException(
+        PasswordResetException exception,
+        HttpServletRequest request
+) {
+
+    String error = switch (exception.reason()) {
+        case INVALID_RESET_TOKEN ->
+                "INVALID_RESET_TOKEN";
+
+        case INVALID_NEW_PASSWORD ->
+                "INVALID_NEW_PASSWORD";
+    };
+
+    HttpStatus status = switch (exception.reason()) {
+        case INVALID_RESET_TOKEN ->
+                HttpStatus.UNAUTHORIZED;
+
+        case INVALID_NEW_PASSWORD ->
+                HttpStatus.BAD_REQUEST;
+    };
+
+    ApiErrorResponse response =
+            ApiErrorResponse.of(
+                    error,
+                    exception.getMessage(),
+                    Map.of(),
+                    getTraceId(request)
+            );
+
+    return ResponseEntity
+            .status(status)
+            .body(response);
+}
 
     @ExceptionHandler(RefreshSessionException.class)
 public ResponseEntity<ApiErrorResponse> handleRefreshSessionException(
