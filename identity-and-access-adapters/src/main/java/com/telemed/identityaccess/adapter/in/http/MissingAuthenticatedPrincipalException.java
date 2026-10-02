@@ -1,9 +1,9 @@
 package com.telemed.identityaccess.adapter.in.http;
 
-public class MissingAuthenticatedPrincipalException
+public final class MissingAuthenticatedPrincipalException
         extends RuntimeException {
 
     public MissingAuthenticatedPrincipalException() {
-        super("Authenticated principal is missing from the request.");
+        super("Authenticated principal is missing.");
     }
 }
