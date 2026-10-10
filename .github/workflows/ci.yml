@@ -11,10 +11,19 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout API
+        uses: actions/checkout@v4
+
+      - name: Checkout official Identity DB migrations
+        uses: actions/checkout@v4
+        with:
+          repository: code-corhuila/telemed-ia-identity-and-access-db
+          ref: 62c4fa4b74397ed0710f082bcc23f6cc8180da56
+          path: .e2e/identity-db
+          persist-credentials: false
 
       - uses: actions/setup-java@v4
         with:
@@ -22,5 +31,7 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build and test
+      - name: Build and test against official DB schema
+        env:
+          IDENTITY_DB_MIGRATIONS_DIR: ${{ github.workspace }}/.e2e/identity-db
         run: mvn -B verify

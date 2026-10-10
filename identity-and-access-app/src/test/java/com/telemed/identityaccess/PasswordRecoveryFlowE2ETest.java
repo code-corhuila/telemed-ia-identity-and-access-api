@@ -23,8 +23,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
@@ -38,12 +36,12 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
                 "security.jwt.issuer=telemed-ia-identity-and-access",
+                "spring.liquibase.enabled=false",
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
                 "security.password-reset-token.ttl=PT30M",
@@ -68,7 +66,6 @@ class PasswordRecoveryFlowE2ETest {
     private static final KeyPair RSA_KEY_PAIR =
             generateRsaKeyPair();
 
-    @Container
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(
                     "postgres:16.4-alpine"
@@ -81,15 +78,15 @@ class PasswordRecoveryFlowE2ETest {
                     )
                     .withPassword(
                             "telemed_test"
-                    )
-                    .withInitScript(
-                            "e2e/identity-schema.sql"
                     );
+
 
     @DynamicPropertySource
     static void configureProperties(
             DynamicPropertyRegistry registry
     ) {
+        POSTGRES.start();
+        OfficialDatabaseSchemaInitializer.migrate(POSTGRES);
 
         registry.add(
                 "spring.datasource.url",
@@ -142,6 +139,7 @@ class PasswordRecoveryFlowE2ETest {
                 sha256(RESET_TOKEN)
         );
     }
+
     @Test
     void shouldCompletePasswordRecoveryFlow()
             throws Exception {
@@ -394,6 +392,7 @@ class PasswordRecoveryFlowE2ETest {
         );
         assertThat(originalLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
+
     private ResponseEntity<String> postJson(
             String url,
             Object body
@@ -531,4 +530,53 @@ class PasswordRecoveryFlowE2ETest {
                     );
         }
     }
+        @Test
+        void shouldExposeOfficialPasswordResetLifecycleSchema() {
+
+        String idColumnType = jdbcTemplate.queryForObject(
+                """
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'password_reset_tokens'
+                AND column_name = 'id'
+                """,
+                String.class
+        );
+
+        assertThat(idColumnType)
+                .as("Password reset token ID must use the official UUID type")
+                .isEqualTo("uuid");
+
+        String supersededAtType = jdbcTemplate.queryForObject(
+                """
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'password_reset_tokens'
+                AND column_name = 'superseded_at'
+                """,
+                String.class
+        );
+
+        assertThat(supersededAtType)
+                .as("Official schema must expose superseded_at as TIMESTAMPTZ")
+                .isEqualTo("timestamp with time zone");
+
+        Integer appliedMigrations = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM public.databasechangelog_identity_and_access
+                WHERE id IN (
+                        'ddl-alter-003-migrate-password-reset-token-id-to-uuid',
+                        'ddl-alter-004-record-reset-supersession'
+                )
+                """,
+                Integer.class
+        );
+
+        assertThat(appliedMigrations)
+                .as("Official UUID and supersession migrations must be applied")
+                .isEqualTo(2);
+        }
 }

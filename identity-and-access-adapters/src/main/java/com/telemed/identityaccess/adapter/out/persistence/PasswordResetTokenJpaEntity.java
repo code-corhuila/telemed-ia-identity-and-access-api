@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess.adapter.out.persistence;
 
 import com.telemed.identityaccess.domain.model.PasswordResetToken;
@@ -17,13 +18,10 @@ import java.util.UUID;
 public class PasswordResetTokenJpaEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @Column(
-            name = "user_id",
-            nullable = false
-    )
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
     @Column(
@@ -41,15 +39,10 @@ public class PasswordResetTokenJpaEntity {
     )
     private OffsetDateTime createdAt;
 
-    @Column(
-            name = "expires_at",
-            nullable = false
-    )
+    @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
 
-    @Column(
-            nullable = false
-    )
+    @Column(nullable = false)
     private boolean used;
 
     protected PasswordResetTokenJpaEntity() {
@@ -81,7 +74,7 @@ public class PasswordResetTokenJpaEntity {
         );
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
