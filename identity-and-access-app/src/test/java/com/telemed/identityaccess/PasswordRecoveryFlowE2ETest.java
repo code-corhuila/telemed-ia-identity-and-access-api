@@ -3,8 +3,10 @@ package com.telemed.identityaccess;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenProviderPort;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -128,6 +130,18 @@ class PasswordRecoveryFlowE2ETest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void clearFixedTokenBetweenTests() {
+        // Both E2E scenarios use the same deterministic token provider.
+        // Reset only this synthetic token, in the isolated Testcontainers DB.
+        jdbcTemplate.update(
+                "DELETE FROM password_reset_tokens WHERE token_hash = ?",
+                sha256(RESET_TOKEN)
+        );
+    }
     @Test
     void shouldCompletePasswordRecoveryFlow()
             throws Exception {
@@ -335,6 +349,51 @@ class PasswordRecoveryFlowE2ETest {
         );
     }
 
+    @Test
+    void shouldRejectExpiredResetTokenWithoutChangingPassword()
+            throws Exception {
+
+        String baseUrl = "http://localhost:" + port + "/api/v1/auth";
+        String email = "expired.recovery.e2e@example.com";
+
+        ResponseEntity<String> registered = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "Expired Recovery Patient",
+                        "email", email,
+                        "identityDocument", "RECOVERY-EXPIRED-101",
+                        "password", OLD_PASSWORD
+                )
+        );
+        assertThat(registered.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> requested = postJson(
+                baseUrl + "/password-recovery",
+                Map.of("email", email)
+        );
+        assertThat(requested.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+        int rows = jdbcTemplate.update(
+                "UPDATE password_reset_tokens SET expires_at = ? WHERE token_hash = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(60)),
+                sha256(RESET_TOKEN)
+        );
+        assertThat(rows).isEqualTo(1);
+
+        ResponseEntity<String> rejected = postJson(
+                baseUrl + "/password-reset",
+                Map.of("token", RESET_TOKEN, "newPassword", NEW_PASSWORD)
+        );
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        JsonNode error = objectMapper.readTree(rejected.getBody());
+        assertThat(error.path("error").asText()).isEqualTo("INVALID_RESET_TOKEN");
+
+        ResponseEntity<String> originalLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", OLD_PASSWORD)
+        );
+        assertThat(originalLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
     private ResponseEntity<String> postJson(
             String url,
             Object body
