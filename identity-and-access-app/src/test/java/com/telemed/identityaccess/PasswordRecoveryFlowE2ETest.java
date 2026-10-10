@@ -530,22 +530,53 @@ class PasswordRecoveryFlowE2ETest {
                     );
         }
     }
+        @Test
+        void shouldExposeOfficialPasswordResetLifecycleSchema() {
 
-    @Test
-    void shouldExposeOfficialPasswordResetLifecycleSchema() {
-        Integer columnCount = jdbcTemplate.queryForObject(
+        String idColumnType = jdbcTemplate.queryForObject(
                 """
-                SELECT COUNT(*)
+                SELECT data_type
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
-                  AND table_name = 'password_reset_tokens'
-                  AND column_name = 'superseded_at'
+                AND table_name = 'password_reset_tokens'
+                AND column_name = 'id'
+                """,
+                String.class
+        );
+
+        assertThat(idColumnType)
+                .as("Password reset token ID must use the official UUID type")
+                .isEqualTo("uuid");
+
+        String supersededAtType = jdbcTemplate.queryForObject(
+                """
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'password_reset_tokens'
+                AND column_name = 'superseded_at'
+                """,
+                String.class
+        );
+
+        assertThat(supersededAtType)
+                .as("Official schema must expose superseded_at as TIMESTAMPTZ")
+                .isEqualTo("timestamp with time zone");
+
+        Integer appliedMigrations = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM public.databasechangelog_identity_and_access
+                WHERE id IN (
+                        'ddl-alter-003-migrate-password-reset-token-id-to-uuid',
+                        'ddl-alter-004-record-reset-supersession'
+                )
                 """,
                 Integer.class
         );
 
-        assertThat(columnCount)
-                .as("Official DB schema must expose superseded_at")
-                .isEqualTo(1);
-    }
+        assertThat(appliedMigrations)
+                .as("Official UUID and supersession migrations must be applied")
+                .isEqualTo(2);
+        }
 }
