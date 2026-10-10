@@ -531,4 +531,22 @@ class PasswordRecoveryFlowE2ETest {
                     );
         }
     }
+
+    @Test
+    void shouldExposeOfficialPasswordResetLifecycleSchema() {
+        Integer columnCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'password_reset_tokens'
+                  AND column_name = 'superseded_at'
+                """,
+                Integer.class
+        );
+
+        assertThat(columnCount)
+                .as("Official DB schema must expose superseded_at")
+                .isEqualTo(1);
+    }
 }
