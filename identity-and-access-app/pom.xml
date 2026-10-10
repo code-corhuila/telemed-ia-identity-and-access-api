@@ -15,7 +15,6 @@
   <artifactId>identity-and-access-app</artifactId>
 
   <dependencies>
-
     <dependency>
       <groupId>com.telemed</groupId>
       <artifactId>identity-and-access-core</artifactId>
@@ -57,11 +56,15 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <finalName>identity-and-access-app</finalName>
-
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -69,5 +72,4 @@
       </plugin>
     </plugins>
   </build>
-
 </project>
