@@ -60,31 +60,33 @@ public class AuthenticationConfiguration {
     }
 
 
-@Bean
-PasswordResetUseCase passwordResetUseCase(
-        PasswordResetTokenRepositoryPort resetTokens,
-        PasswordResetTokenHasherPort tokenHasher,
-        UserRepositoryPort users,
-        PasswordHasherPort passwordHasher,
-        Clock authenticationClock,
-        PlatformTransactionManager transactionManager
-) {
-    PasswordResetUseCase delegate = new PasswordResetService(
-            resetTokens,
-            tokenHasher,
-            users,
-            passwordHasher,
-            authenticationClock
-    );
 
-    TransactionTemplate transaction =
-            new TransactionTemplate(transactionManager);
+    @Bean
+    PasswordResetUseCase passwordResetUseCase(
+            PasswordResetTokenRepositoryPort resetTokens,
+            PasswordResetTokenHasherPort tokenHasher,
+            UserRepositoryPort users,
+            PasswordHasherPort passwordHasher,
+            Clock authenticationClock,
+            PlatformTransactionManager transactionManager
+    ) {
+        PasswordResetUseCase delegate = new PasswordResetService(
+                resetTokens,
+                tokenHasher,
+                users,
+                passwordHasher,
+                authenticationClock
+        );
 
-    return (resetToken, newPassword) ->
-            transaction.executeWithoutResult(status ->
-                    delegate.reset(resetToken, newPassword)
-            );
-}
+        TransactionTemplate transaction =
+                new TransactionTemplate(transactionManager);
+
+        return (resetToken, newPassword) ->
+                transaction.executeWithoutResult(status ->
+                        delegate.reset(resetToken, newPassword)
+                );
+    }
+
 
     @Bean
     AccessTokenVerifierPort accessTokenVerifier(
