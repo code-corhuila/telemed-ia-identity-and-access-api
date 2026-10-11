@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess.adapter.out.persistence;
 
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
@@ -24,7 +25,6 @@ public class PasswordResetTokenPersistenceAdapter
     public void save(
             PasswordResetToken passwordResetToken
     ) {
-
         PasswordResetTokenJpaEntity entity =
                 PasswordResetTokenJpaEntity.fromDomain(
                         passwordResetToken
@@ -45,11 +45,8 @@ public class PasswordResetTokenPersistenceAdapter
     public Optional<PasswordResetToken> findByTokenHash(
             String tokenHash
     ) {
-
         try {
-            return tokens.findByTokenHash(
-                            tokenHash
-                    )
+            return tokens.findByTokenHash(tokenHash)
                     .map(this::toDomain);
 
         } catch (DataAccessException exception) {
@@ -62,24 +59,14 @@ public class PasswordResetTokenPersistenceAdapter
 
     @Override
     @Transactional
-    public void markUsedByTokenHash(
+    public boolean markUsedByTokenHash(
             String tokenHash
     ) {
-
         try {
             int updatedRows =
-                    tokens.markUsedByTokenHash(
-                            tokenHash
-                    );
+                    tokens.markUsedByTokenHash(tokenHash);
 
-            if (updatedRows != 1) {
-                throw new IllegalStateException(
-                        "Password reset token could not be marked as used."
-                );
-            }
-
-        } catch (IllegalStateException exception) {
-            throw exception;
+            return updatedRows == 1;
 
         } catch (DataAccessException exception) {
             throw new IllegalStateException(
@@ -92,7 +79,6 @@ public class PasswordResetTokenPersistenceAdapter
     private PasswordResetToken toDomain(
             PasswordResetTokenJpaEntity entity
     ) {
-
         return new PasswordResetToken(
                 entity.getUserId(),
                 entity.getTokenHash(),

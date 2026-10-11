@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess.application.usecase;
 
 import com.telemed.identityaccess.application.exception.PasswordResetException;
@@ -38,59 +39,44 @@ public class PasswordResetService
             String resetToken,
             String newPassword
     ) {
-
         if (resetToken == null
                 || resetToken.isBlank()) {
-
-            throw PasswordResetException
-                    .invalidResetToken();
+            throw PasswordResetException.invalidResetToken();
         }
 
         if (newPassword == null
                 || newPassword.isBlank()) {
-
-            throw PasswordResetException
-                    .invalidNewPassword();
+            throw PasswordResetException.invalidNewPassword();
         }
 
         String tokenHash =
-                tokenHasher.hash(
-                        resetToken
-                );
+                tokenHasher.hash(resetToken);
 
         PasswordResetToken storedToken =
-                resetTokens.findByTokenHash(
-                                tokenHash
-                        )
+                resetTokens.findByTokenHash(tokenHash)
                         .orElseThrow(
-                                PasswordResetException
-                                        ::invalidResetToken
+                                PasswordResetException::invalidResetToken
                         );
 
         if (storedToken.used()) {
-            throw PasswordResetException
-                    .invalidResetToken();
+            throw PasswordResetException.invalidResetToken();
         }
 
         if (!storedToken.expiresAt()
                 .isAfter(clock.instant())) {
-
-            throw PasswordResetException
-                    .invalidResetToken();
+            throw PasswordResetException.invalidResetToken();
         }
 
         String newPasswordHash =
-                passwordHasher.hash(
-                        newPassword
-                );
+                passwordHasher.hash(newPassword);
 
         users.updatePasswordHash(
                 storedToken.userId(),
                 newPasswordHash
         );
 
-        resetTokens.markUsedByTokenHash(
-                tokenHash
-        );
+        if (!resetTokens.markUsedByTokenHash(tokenHash)) {
+            throw PasswordResetException.invalidResetToken();
+        }
     }
 }
