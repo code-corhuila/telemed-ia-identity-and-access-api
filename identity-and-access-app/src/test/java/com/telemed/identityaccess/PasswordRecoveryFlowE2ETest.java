@@ -487,6 +487,113 @@ class PasswordRecoveryFlowE2ETest {
         }
     }
 
+    @Test
+    void shouldRejectSupersededResetTokenWithoutChangingPassword()
+            throws Exception {
+        String baseUrl = "http://localhost:" + port + "/api/v1/auth";
+        String email = "superseded.reset.e2e@example.com";
+        String replacementToken = "e2e-replacement-password-reset-token";
+
+        ResponseEntity<String> registered = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "Superseded Reset Patient",
+                        "email", email,
+                        "identityDocument", "RECOVERY-SUPERSEDED-103",
+                        "password", OLD_PASSWORD
+                )
+        );
+        assertThat(registered.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> requested = postJson(
+                baseUrl + "/password-recovery",
+                Map.of("email", email)
+        );
+        assertThat(requested.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+        // Simulate issuance of a different token using the official DB trigger.
+        // The production test provider is deterministic, so a second HTTP
+        // request would reuse the same token hash and violate its UNIQUE key.
+        int inserted = jdbcTemplate.update(
+                """
+                INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+                SELECT user_id, ?, ?
+                FROM password_reset_tokens
+                WHERE token_hash = ?
+                """,
+                sha256(replacementToken),
+                java.sql.Timestamp.from(
+                        Instant.now().plus(Duration.ofMinutes(30))
+                ),
+                sha256(RESET_TOKEN)
+        );
+        assertThat(inserted).isEqualTo(1);
+
+        Integer supersededCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM password_reset_tokens
+                WHERE token_hash = ?
+                  AND used = FALSE
+                  AND superseded_at IS NOT NULL
+                """,
+                Integer.class,
+                sha256(RESET_TOKEN)
+        );
+        assertThat(supersededCount)
+                .as("The official DB trigger must supersede the older token")
+                .isEqualTo(1);
+
+        Integer activeCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM password_reset_tokens
+                WHERE token_hash = ?
+                  AND used = FALSE
+                  AND superseded_at IS NULL
+                """,
+                Integer.class,
+                sha256(replacementToken)
+        );
+        assertThat(activeCount)
+                .as("The replacement token must be active")
+                .isEqualTo(1);
+
+        ResponseEntity<String> rejected = postJson(
+                baseUrl + "/password-reset",
+                Map.of("token", RESET_TOKEN, "newPassword", NEW_PASSWORD)
+        );
+        assertThat(rejected.getStatusCode())
+                .as("Superseded reset tokens must be rejected as invalid")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        JsonNode error = objectMapper.readTree(rejected.getBody());
+        assertThat(error.path("error").asText())
+                .isEqualTo("INVALID_RESET_TOKEN");
+
+        ResponseEntity<String> oldPasswordLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", OLD_PASSWORD)
+        );
+        assertThat(oldPasswordLogin.getStatusCode())
+                .as("An invalidated recovery token must not change the password")
+                .isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> replacementReset = postJson(
+                baseUrl + "/password-reset",
+                Map.of("token", replacementToken, "newPassword", NEW_PASSWORD)
+        );
+        assertThat(replacementReset.getStatusCode())
+                .as("The active replacement token must still work")
+                .isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<String> newPasswordLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", NEW_PASSWORD)
+        );
+        assertThat(newPasswordLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
     private ResponseEntity<String> postJson(
             String url,
             Object body
