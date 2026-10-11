@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess.application.usecase;
 
 import com.telemed.identityaccess.application.exception.PasswordResetException;
@@ -41,6 +42,9 @@ class PasswordResetServiceTest {
     private static final String NEW_PASSWORD =
             "NewSecret123!";
 
+    private static final String NEW_PASSWORD_HASH =
+            "$2a$10$newPasswordHash";
+
     @Mock
     private PasswordResetTokenRepositoryPort resetTokens;
 
@@ -57,7 +61,6 @@ class PasswordResetServiceTest {
 
     @BeforeEach
     void setUp() {
-
         service = new PasswordResetService(
                 resetTokens,
                 tokenHasher,
@@ -72,7 +75,6 @@ class PasswordResetServiceTest {
 
     @Test
     void shouldResetPasswordUsingValidToken() {
-
         PasswordResetToken token =
                 PasswordResetToken.active(
                         USER_ID,
@@ -80,65 +82,49 @@ class PasswordResetServiceTest {
                         NOW.plusSeconds(1800)
                 );
 
-        when(tokenHasher.hash(
-                "plain-reset-token"
-        )).thenReturn(
-                TOKEN_HASH
-        );
+        when(tokenHasher.hash("plain-reset-token"))
+                .thenReturn(TOKEN_HASH);
 
-        when(resetTokens.findByTokenHash(
-                TOKEN_HASH
-        )).thenReturn(
-                Optional.of(token)
-        );
+        when(resetTokens.findByTokenHash(TOKEN_HASH))
+                .thenReturn(Optional.of(token));
 
-        when(passwordHasher.hash(
-                NEW_PASSWORD
-        )).thenReturn(
-                "$2a$10$newPasswordHash"
-        );
+        when(passwordHasher.hash(NEW_PASSWORD))
+                .thenReturn(NEW_PASSWORD_HASH);
+
+        when(resetTokens.markUsedByTokenHash(TOKEN_HASH))
+                .thenReturn(true);
 
         service.reset(
                 "plain-reset-token",
                 NEW_PASSWORD
         );
 
-        verify(users)
-                .updatePasswordHash(
-                        USER_ID,
-                        "$2a$10$newPasswordHash"
-                );
+        verify(users).updatePasswordHash(
+                USER_ID,
+                NEW_PASSWORD_HASH
+        );
 
-        verify(resetTokens)
-                .markUsedByTokenHash(
-                        TOKEN_HASH
-                );
+        verify(resetTokens).markUsedByTokenHash(
+                TOKEN_HASH
+        );
     }
 
     @Test
     void shouldRejectUnknownResetToken() {
+        when(tokenHasher.hash("unknown-reset-token"))
+                .thenReturn(TOKEN_HASH);
 
-        when(tokenHasher.hash(
-                "unknown-reset-token"
-        )).thenReturn(
-                TOKEN_HASH
-        );
-
-        when(resetTokens.findByTokenHash(
-                TOKEN_HASH
-        )).thenReturn(
-                Optional.empty()
-        );
+        when(resetTokens.findByTokenHash(TOKEN_HASH))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(
                 () -> service.reset(
                         "unknown-reset-token",
                         NEW_PASSWORD
                 )
-        )
-                .isInstanceOf(
-                        PasswordResetException.class
-                );
+        ).isInstanceOf(
+                PasswordResetException.class
+        );
 
         verify(passwordHasher, never())
                 .hash(
@@ -154,7 +140,6 @@ class PasswordResetServiceTest {
 
     @Test
     void shouldRejectAlreadyUsedResetToken() {
-
         PasswordResetToken usedToken =
                 new PasswordResetToken(
                         USER_ID,
@@ -163,27 +148,20 @@ class PasswordResetServiceTest {
                         true
                 );
 
-        when(tokenHasher.hash(
-                "used-reset-token"
-        )).thenReturn(
-                TOKEN_HASH
-        );
+        when(tokenHasher.hash("used-reset-token"))
+                .thenReturn(TOKEN_HASH);
 
-        when(resetTokens.findByTokenHash(
-                TOKEN_HASH
-        )).thenReturn(
-                Optional.of(usedToken)
-        );
+        when(resetTokens.findByTokenHash(TOKEN_HASH))
+                .thenReturn(Optional.of(usedToken));
 
         assertThatThrownBy(
                 () -> service.reset(
                         "used-reset-token",
                         NEW_PASSWORD
                 )
-        )
-                .isInstanceOf(
-                        PasswordResetException.class
-                );
+        ).isInstanceOf(
+                PasswordResetException.class
+        );
 
         verify(users, never())
                 .updatePasswordHash(
@@ -192,14 +170,11 @@ class PasswordResetServiceTest {
                 );
 
         verify(resetTokens, never())
-                .markUsedByTokenHash(
-                        TOKEN_HASH
-                );
+                .markUsedByTokenHash(TOKEN_HASH);
     }
 
     @Test
     void shouldRejectExpiredResetToken() {
-
         PasswordResetToken expiredToken =
                 PasswordResetToken.active(
                         USER_ID,
@@ -207,27 +182,20 @@ class PasswordResetServiceTest {
                         NOW.minusSeconds(1)
                 );
 
-        when(tokenHasher.hash(
-                "expired-reset-token"
-        )).thenReturn(
-                TOKEN_HASH
-        );
+        when(tokenHasher.hash("expired-reset-token"))
+                .thenReturn(TOKEN_HASH);
 
-        when(resetTokens.findByTokenHash(
-                TOKEN_HASH
-        )).thenReturn(
-                Optional.of(expiredToken)
-        );
+        when(resetTokens.findByTokenHash(TOKEN_HASH))
+                .thenReturn(Optional.of(expiredToken));
 
         assertThatThrownBy(
                 () -> service.reset(
                         "expired-reset-token",
                         NEW_PASSWORD
                 )
-        )
-                .isInstanceOf(
-                        PasswordResetException.class
-                );
+        ).isInstanceOf(
+                PasswordResetException.class
+        );
 
         verify(users, never())
                 .updatePasswordHash(
@@ -236,23 +204,19 @@ class PasswordResetServiceTest {
                 );
 
         verify(resetTokens, never())
-                .markUsedByTokenHash(
-                        TOKEN_HASH
-                );
+                .markUsedByTokenHash(TOKEN_HASH);
     }
 
     @Test
     void shouldRejectBlankResetToken() {
-
         assertThatThrownBy(
                 () -> service.reset(
                         " ",
                         NEW_PASSWORD
                 )
-        )
-                .isInstanceOf(
-                        PasswordResetException.class
-                );
+        ).isInstanceOf(
+                PasswordResetException.class
+        );
 
         verify(tokenHasher, never())
                 .hash(
@@ -262,16 +226,14 @@ class PasswordResetServiceTest {
 
     @Test
     void shouldRejectBlankNewPassword() {
-
         assertThatThrownBy(
                 () -> service.reset(
                         "plain-reset-token",
                         " "
                 )
-        )
-                .isInstanceOf(
-                        PasswordResetException.class
-                );
+        ).isInstanceOf(
+                PasswordResetException.class
+        );
 
         verify(tokenHasher, never())
                 .hash(
@@ -282,5 +244,47 @@ class PasswordResetServiceTest {
                 .hash(
                         org.mockito.ArgumentMatchers.anyString()
                 );
+    }
+
+    @Test
+    void shouldRejectResetWhenTokenCannotBeConsumed() {
+        PasswordResetToken token =
+                PasswordResetToken.active(
+                        USER_ID,
+                        TOKEN_HASH,
+                        NOW.plusSeconds(1800)
+                );
+
+        when(tokenHasher.hash("plain-reset-token"))
+                .thenReturn(TOKEN_HASH);
+
+        when(resetTokens.findByTokenHash(TOKEN_HASH))
+                .thenReturn(Optional.of(token));
+
+        when(passwordHasher.hash(NEW_PASSWORD))
+                .thenReturn(NEW_PASSWORD_HASH);
+
+        when(resetTokens.markUsedByTokenHash(TOKEN_HASH))
+                .thenReturn(false);
+
+        assertThatThrownBy(
+                () -> service.reset(
+                        "plain-reset-token",
+                        NEW_PASSWORD
+                )
+        ).isInstanceOf(
+                PasswordResetException.class
+        ).hasMessageContaining(
+                "invalid or expired"
+        );
+
+        verify(users).updatePasswordHash(
+                USER_ID,
+                NEW_PASSWORD_HASH
+        );
+
+        verify(resetTokens).markUsedByTokenHash(
+                TOKEN_HASH
+        );
     }
 }
