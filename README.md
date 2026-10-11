@@ -2,7 +2,7 @@
 
 Identity and Access API for the TeleMed IA project, Group 2.
 
-Governance repository:  
+Governance repository:
 [https://github.com/code-corhuila/telemed-ia-docs](https://github.com/code-corhuila/telemed-ia-docs)
 
 ## Modules
