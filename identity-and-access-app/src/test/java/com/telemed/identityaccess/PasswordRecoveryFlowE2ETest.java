@@ -6,7 +6,6 @@ import com.telemed.identityaccess.application.port.out.PasswordResetTokenProvide
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -20,6 +19,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -33,6 +33,11 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -592,6 +597,153 @@ class PasswordRecoveryFlowE2ETest {
                 Map.of("email", email, "password", NEW_PASSWORD)
         );
         assertThat(newPasswordLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void shouldAllowOnlyOneConcurrentPasswordReset()
+            throws Exception {
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String email = "concurrent.reset.e2e@example.com";
+        String firstPassword = "ConcurrentFirst456!";
+        String secondPassword = "ConcurrentSecond789!";
+
+        ResponseEntity<String> registered = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "Concurrent Reset Patient",
+                        "email", email,
+                        "identityDocument", "RECOVERY-CONCURRENT-104",
+                        "password", OLD_PASSWORD
+                )
+        );
+        assertThat(registered.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> requested = postJson(
+                baseUrl + "/password-recovery",
+                Map.of("email", email)
+        );
+        assertThat(requested.getStatusCode())
+                .isEqualTo(HttpStatus.ACCEPTED);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        ResponseEntity<String> firstResponse;
+        ResponseEntity<String> secondResponse;
+
+        try {
+            Future<ResponseEntity<String>> first = executor.submit(
+                    () -> concurrentReset(
+                            baseUrl,
+                            firstPassword,
+                            ready,
+                            start
+                    )
+            );
+            Future<ResponseEntity<String>> second = executor.submit(
+                    () -> concurrentReset(
+                            baseUrl,
+                            secondPassword,
+                            ready,
+                            start
+                    )
+            );
+
+            assertThat(ready.await(10, TimeUnit.SECONDS))
+                    .as("Both reset requests must be ready")
+                    .isTrue();
+
+            start.countDown();
+
+            firstResponse = first.get(45, TimeUnit.SECONDS);
+            secondResponse = second.get(45, TimeUnit.SECONDS);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+
+        assertThat(new Object[]{
+                firstResponse.getStatusCode(),
+                secondResponse.getStatusCode()
+        }).containsExactlyInAnyOrder(
+                HttpStatus.NO_CONTENT,
+                HttpStatus.UNAUTHORIZED
+        );
+
+        boolean firstSucceeded =
+                firstResponse.getStatusCode().equals(HttpStatus.NO_CONTENT);
+
+        String winningPassword =
+                firstSucceeded ? firstPassword : secondPassword;
+        String losingPassword =
+                firstSucceeded ? secondPassword : firstPassword;
+
+        ResponseEntity<String> rejected =
+                firstSucceeded ? secondResponse : firstResponse;
+        JsonNode error = objectMapper.readTree(rejected.getBody());
+        assertThat(error.path("error").asText())
+                .isEqualTo("INVALID_RESET_TOKEN");
+
+        Integer consumedTokens = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM password_reset_tokens
+                WHERE token_hash = ?
+                  AND used = TRUE
+                """,
+                Integer.class,
+                sha256(RESET_TOKEN)
+        );
+        assertThat(consumedTokens)
+                .as("Exactly one reset token must be consumed")
+                .isEqualTo(1);
+
+        ResponseEntity<String> winningLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", winningPassword)
+        );
+        assertThat(winningLogin.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> losingLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", losingPassword)
+        );
+        assertThat(losingLogin.getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<String> originalLogin = postJson(
+                baseUrl + "/login",
+                Map.of("email", email, "password", OLD_PASSWORD)
+        );
+        assertThat(originalLogin.getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    private ResponseEntity<String> concurrentReset(
+            String baseUrl,
+            String newPassword,
+            CountDownLatch ready,
+            CountDownLatch start
+    ) throws InterruptedException {
+        ready.countDown();
+
+        if (!start.await(15, TimeUnit.SECONDS)) {
+            throw new IllegalStateException(
+                    "Concurrent password reset did not start."
+            );
+        }
+
+        return postJson(
+                baseUrl + "/password-reset",
+                Map.of(
+                        "token", RESET_TOKEN,
+                        "newPassword", newPassword
+                )
+        );
     }
 
     private ResponseEntity<String> postJson(
