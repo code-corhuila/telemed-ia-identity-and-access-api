@@ -31,7 +31,8 @@ import org.springframework.context.annotation.Configuration;
 import com.telemed.identityaccess.application.port.in.PasswordResetUseCase;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenHasherPort;
 import com.telemed.identityaccess.application.usecase.PasswordResetService;
-
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 
 @Configuration
@@ -58,21 +59,31 @@ public class AuthenticationConfiguration {
         );
     }
 
+
 @Bean
 PasswordResetUseCase passwordResetUseCase(
         PasswordResetTokenRepositoryPort resetTokens,
         PasswordResetTokenHasherPort tokenHasher,
         UserRepositoryPort users,
         PasswordHasherPort passwordHasher,
-        Clock authenticationClock
+        Clock authenticationClock,
+        PlatformTransactionManager transactionManager
 ) {
-    return new PasswordResetService(
+    PasswordResetUseCase delegate = new PasswordResetService(
             resetTokens,
             tokenHasher,
             users,
             passwordHasher,
             authenticationClock
     );
+
+    TransactionTemplate transaction =
+            new TransactionTemplate(transactionManager);
+
+    return (resetToken, newPassword) ->
+            transaction.executeWithoutResult(status ->
+                    delegate.reset(resetToken, newPassword)
+            );
 }
 
     @Bean

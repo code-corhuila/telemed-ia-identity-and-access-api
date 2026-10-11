@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess;
 
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
@@ -9,6 +10,7 @@ import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @SpringBootTest(properties = {
         "security.jwt.issuer=telemed-ia-identity-and-access",
@@ -37,6 +39,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private PasswordResetTokenRepositoryPort passwordResetTokenRepository;
+
+    @MockBean
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void contextLoads() {
