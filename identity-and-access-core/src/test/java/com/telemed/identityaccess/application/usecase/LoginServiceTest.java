@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
@@ -335,6 +336,91 @@ class LoginServiceTest {
         assertThat(result.refreshToken())
                 .isEqualTo("plain-refresh-token");
     }
+
+@Test
+void shouldAllowLoginWhenPasswordRehashStorageFails() {
+
+    User user = activePatient();
+
+    String password = "StrongPassword123!";
+    String upgradedHash = "$2a$10$upgradedPasswordHash";
+
+    Instant accessExpiresAt =
+            Instant.parse("2026-09-26T15:00:00Z");
+
+    Instant refreshExpiresAt =
+            Instant.parse("2026-10-03T15:00:00Z");
+
+    when(users.findByEmail("patient@example.com"))
+            .thenReturn(Optional.of(user));
+
+    when(passwordHasher.matches(
+            password,
+            user.passwordHash()
+    )).thenReturn(true);
+
+    when(passwordHasher.needsRehash(
+            user.passwordHash()
+    )).thenReturn(true);
+
+    when(passwordHasher.hash(password))
+            .thenReturn(upgradedHash);
+
+    doThrow(new IllegalStateException(
+            "Simulated password rehash persistence failure."
+    )).when(users).updatePasswordHash(
+            USER_ID,
+            upgradedHash
+    );
+
+    when(accessTokens.issue(
+            USER_ID,
+            Role.PATIENT
+    )).thenReturn(
+            new AccessTokenProviderPort.IssuedAccessToken(
+                    "access-token",
+                    accessExpiresAt
+            )
+    );
+
+    when(refreshTokens.issue()).thenReturn(
+            new RefreshTokenProviderPort.IssuedRefreshToken(
+                    "plain-refresh-token",
+                    REFRESH_TOKEN_HASH,
+                    refreshExpiresAt
+            )
+    );
+
+    LoginUseCase.Result result = service.login(
+            new LoginUseCase.Command(
+                    "patient@example.com",
+                    password
+            )
+    );
+
+    assertThat(result.userId())
+            .isEqualTo(USER_ID);
+
+    assertThat(result.accessToken())
+            .isEqualTo("access-token");
+
+    assertThat(result.refreshToken())
+            .isEqualTo("plain-refresh-token");
+
+    verify(users).updatePasswordHash(
+            USER_ID,
+            upgradedHash
+    );
+
+    verify(refreshTokenRepository).save(
+            RefreshToken.active(
+                    USER_ID,
+                    REFRESH_TOKEN_HASH,
+                    refreshExpiresAt
+            )
+    );
+}
+
 
     @Test
     void shouldRejectInactiveUserWithGenericError() {
