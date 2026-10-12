@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.telemed.identityaccess.application.exception.RefreshSessionException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -85,6 +86,24 @@ public class GlobalExceptionHandler {
             }
         };
     }
+
+    @ExceptionHandler(RefreshSessionException.class)
+public ResponseEntity<ApiErrorResponse> handleRefreshSessionException(
+        RefreshSessionException exception,
+        HttpServletRequest request
+) {
+
+    ApiErrorResponse response = ApiErrorResponse.of(
+            "INVALID_REFRESH_TOKEN",
+            "Refresh token is invalid or expired.",
+            Map.of(),
+            getTraceId(request)
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(response);
+}
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
