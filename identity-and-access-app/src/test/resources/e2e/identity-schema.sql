@@ -34,6 +34,20 @@ CREATE TABLE refresh_tokens (
         ON DELETE RESTRICT
 );
 
+CREATE TABLE password_reset_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    legacy_user_id BIGINT,
+    user_id UUID NOT NULL,
+    token_hash VARCHAR(120) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_password_reset_tokens_user_uuid
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE RESTRICT
+);
+
 INSERT INTO roles (name)
 VALUES
     ('PATIENT'),
