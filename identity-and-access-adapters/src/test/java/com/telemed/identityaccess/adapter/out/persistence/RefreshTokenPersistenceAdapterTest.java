@@ -12,6 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenPersistenceAdapterTest {
@@ -26,6 +28,14 @@ class RefreshTokenPersistenceAdapterTest {
     private static final UUID USER_ID = UUID.fromString(
             "11111111-1111-4111-8111-111111111111"
     );
+
+    private static final String CURRENT_HASH =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    private static final String NEW_HASH =
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    + "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
     @Mock
     private SpringDataRefreshTokenRepository repository;
@@ -42,12 +52,10 @@ class RefreshTokenPersistenceAdapterTest {
                 Instant.parse("2026-10-08T17:00:00Z");
 
         RefreshToken refreshToken =
-                new RefreshToken(
+                RefreshToken.active(
                         USER_ID,
-                        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                                + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                        expiresAt,
-                        false
+                        CURRENT_HASH,
+                        expiresAt
                 );
 
         adapter.save(refreshToken);
@@ -69,10 +77,7 @@ class RefreshTokenPersistenceAdapterTest {
                 .isEqualTo(USER_ID);
 
         assertThat(saved.getTokenHash())
-                .isEqualTo(
-                        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                                + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                );
+                .isEqualTo(CURRENT_HASH);
 
         assertThat(saved.getExpiresAt())
                 .isEqualTo(
@@ -95,14 +100,12 @@ class RefreshTokenPersistenceAdapterTest {
                 );
 
         RefreshToken refreshToken =
-                new RefreshToken(
+                RefreshToken.active(
                         USER_ID,
-                        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                                + "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        NEW_HASH,
                         Instant.parse(
                                 "2026-10-08T17:00:00Z"
-                        ),
-                        false
+                        )
                 );
 
         doThrow(
@@ -124,5 +127,102 @@ class RefreshTokenPersistenceAdapterTest {
                 .hasCauseInstanceOf(
                         DataIntegrityViolationException.class
                 );
+    }
+
+    @Test
+    void shouldFindRefreshTokenByHash() {
+
+        RefreshTokenJpaEntity entity =
+                RefreshTokenJpaEntity.fromDomain(
+                        RefreshToken.active(
+                                USER_ID,
+                                CURRENT_HASH,
+                                Instant.parse(
+                                        "2026-10-08T17:00:00Z"
+                                )
+                        )
+                );
+
+        when(repository.findByTokenHash(
+                CURRENT_HASH
+        )).thenReturn(
+                Optional.of(entity)
+        );
+
+        RefreshTokenPersistenceAdapter adapter =
+                new RefreshTokenPersistenceAdapter(
+                        repository
+                );
+
+        Optional<RefreshToken> result =
+                adapter.findByTokenHash(
+                        CURRENT_HASH
+                );
+
+        assertThat(result)
+                .isPresent();
+
+        assertThat(result.get().userId())
+                .isEqualTo(USER_ID);
+
+        assertThat(result.get().tokenHash())
+                .isEqualTo(CURRENT_HASH);
+
+        assertThat(result.get().revoked())
+                .isFalse();
+    }
+
+    @Test
+    void shouldReplaceRefreshTokenAtomically() {
+
+        RefreshTokenPersistenceAdapter adapter =
+                new RefreshTokenPersistenceAdapter(
+                        repository
+                );
+
+        RefreshToken replacement =
+                RefreshToken.active(
+                        USER_ID,
+                        NEW_HASH,
+                        Instant.parse(
+                                "2026-10-08T17:00:00Z"
+                        )
+                );
+
+        when(repository.revokeByTokenHash(
+                CURRENT_HASH
+        )).thenReturn(1);
+
+        adapter.replace(
+                CURRENT_HASH,
+                replacement
+        );
+
+        verify(repository)
+                .revokeByTokenHash(
+                        CURRENT_HASH
+                );
+
+        ArgumentCaptor<RefreshTokenJpaEntity> captor =
+                ArgumentCaptor.forClass(
+                        RefreshTokenJpaEntity.class
+                );
+
+        verify(repository)
+                .saveAndFlush(
+                        captor.capture()
+                );
+
+        RefreshTokenJpaEntity saved =
+                captor.getValue();
+
+        assertThat(saved.getUserId())
+                .isEqualTo(USER_ID);
+
+        assertThat(saved.getTokenHash())
+                .isEqualTo(NEW_HASH);
+
+        assertThat(saved.isRevoked())
+                .isFalse();
     }
 }
