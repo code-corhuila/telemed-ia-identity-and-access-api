@@ -15,12 +15,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.telemed.identityaccess.application.exception.AuthenticationException.Reason.INVALID_CREDENTIALS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +31,10 @@ class LoginServiceTest {
 
     private static final String DUMMY_HASH =
             "$dummy-bcrypt-hash";
+
+    private static final UUID USER_ID = UUID.fromString(
+            "11111111-1111-4111-8111-111111111111"
+    );
 
     @Mock
     private UserRepositoryPort users;
@@ -73,7 +77,7 @@ class LoginServiceTest {
                 Instant.parse("2026-09-25T22:00:00Z");
 
         when(accessTokens.issue(
-                10L,
+                USER_ID,
                 Role.PATIENT
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
@@ -90,7 +94,7 @@ class LoginServiceTest {
         );
 
         assertThat(result.userId())
-                .isEqualTo(10L);
+                .isEqualTo(USER_ID);
 
         assertThat(result.role())
                 .isEqualTo(Role.PATIENT);
@@ -107,7 +111,7 @@ class LoginServiceTest {
         );
 
         verify(accessTokens).issue(
-                10L,
+                USER_ID,
                 Role.PATIENT
         );
     }
@@ -139,7 +143,7 @@ class LoginServiceTest {
 
         verify(accessTokens, never())
                 .issue(
-                        anyLong(),
+                        any(UUID.class),
                         any()
                 );
     }
@@ -173,86 +177,86 @@ class LoginServiceTest {
 
         verify(accessTokens, never())
                 .issue(
-                        anyLong(),
+                        any(UUID.class),
                         any()
                 );
     }
 
     @Test
-void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
+    void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
 
-    User user = activePatient();
+        User user = activePatient();
 
-    when(users.findByEmail("patient@example.com"))
-            .thenReturn(Optional.of(user));
+        when(users.findByEmail("patient@example.com"))
+                .thenReturn(Optional.of(user));
 
-    when(passwordHasher.matches(
-            "StrongPassword123!",
-            user.passwordHash()
-    )).thenReturn(true);
+        when(passwordHasher.matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        )).thenReturn(true);
 
-    when(passwordHasher.needsRehash(
-            user.passwordHash()
-    )).thenReturn(true);
+        when(passwordHasher.needsRehash(
+                user.passwordHash()
+        )).thenReturn(true);
 
-    when(passwordHasher.hash(
-            "StrongPassword123!"
-    )).thenReturn(
-            "$2a$10$upgradedPasswordHash"
-    );
+        when(passwordHasher.hash(
+                "StrongPassword123!"
+        )).thenReturn(
+                "$2a$10$upgradedPasswordHash"
+        );
 
-    Instant expiresAt =
-            Instant.parse("2026-09-26T15:00:00Z");
+        Instant expiresAt =
+                Instant.parse("2026-09-26T15:00:00Z");
 
-    when(accessTokens.issue(
-            10L,
-            Role.PATIENT
-    )).thenReturn(
-            new AccessTokenProviderPort.IssuedAccessToken(
-                    "access-token",
-                    expiresAt
-            )
-    );
+        when(accessTokens.issue(
+                USER_ID,
+                Role.PATIENT
+        )).thenReturn(
+                new AccessTokenProviderPort.IssuedAccessToken(
+                        "access-token",
+                        expiresAt
+                )
+        );
 
-    LoginUseCase.Result result = service.login(
-            new LoginUseCase.Command(
-                    "patient@example.com",
-                    "StrongPassword123!"
-            )
-    );
+        LoginUseCase.Result result = service.login(
+                new LoginUseCase.Command(
+                        "patient@example.com",
+                        "StrongPassword123!"
+                )
+        );
 
-    verify(passwordHasher).matches(
-            "StrongPassword123!",
-            user.passwordHash()
-    );
+        verify(passwordHasher).matches(
+                "StrongPassword123!",
+                user.passwordHash()
+        );
 
-    verify(passwordHasher).needsRehash(
-            user.passwordHash()
-    );
+        verify(passwordHasher).needsRehash(
+                user.passwordHash()
+        );
 
-    verify(passwordHasher).hash(
-            "StrongPassword123!"
-    );
+        verify(passwordHasher).hash(
+                "StrongPassword123!"
+        );
 
-    verify(users).updatePasswordHash(
-            10L,
-            "$2a$10$upgradedPasswordHash"
-    );
+        verify(users).updatePasswordHash(
+                USER_ID,
+                "$2a$10$upgradedPasswordHash"
+        );
 
-    verify(accessTokens).issue(
-            10L,
-            Role.PATIENT
-    );
+        verify(accessTokens).issue(
+                USER_ID,
+                Role.PATIENT
+        );
 
-    assertThat(result.accessToken())
-            .isEqualTo("access-token");
-}
+        assertThat(result.accessToken())
+                .isEqualTo("access-token");
+    }
 
     @Test
     void shouldRejectInactiveUserWithGenericError() {
 
         User user = new User(
-                10L,
+                USER_ID,
                 "Patient Test",
                 "patient@example.com",
                 "DOC-100",
@@ -286,7 +290,7 @@ void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
 
         verify(accessTokens, never())
                 .issue(
-                        anyLong(),
+                        any(UUID.class),
                         any()
                 );
     }
@@ -309,7 +313,7 @@ void shouldRehashPasswordAfterSuccessfulLoginWhenUpgradeIsNeeded() {
     private User activePatient() {
 
         return new User(
-                10L,
+                USER_ID,
                 "Patient Test",
                 "patient@example.com",
                 "DOC-100",

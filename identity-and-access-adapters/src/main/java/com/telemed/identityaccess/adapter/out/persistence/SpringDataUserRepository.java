@@ -7,9 +7,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public interface SpringDataUserRepository
-        extends JpaRepository<UserJpaEntity, Long> {
+        extends JpaRepository<UserJpaEntity, UUID> {
 
     boolean existsByEmailIgnoreCase(String email);
 
@@ -32,7 +33,7 @@ public interface SpringDataUserRepository
             where user.id = :userId
             """)
     int updatePasswordHashById(
-            @Param("userId") Long userId,
+            @Param("userId") UUID userId,
             @Param("passwordHash") String passwordHash
     );
 }

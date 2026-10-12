@@ -1,6 +1,7 @@
 package com.telemed.identityaccess.application.port.in;
 import java.time.Instant;
 import com.telemed.identityaccess.domain.model.Role;
+import java.util.UUID;
 
 public interface LoginUseCase {
 
@@ -32,7 +33,7 @@ public interface LoginUseCase {
     }
 
     record Result(
-            Long userId,
+            UUID userId,
             Role role,
             String accessToken,
             Instant expiresAt

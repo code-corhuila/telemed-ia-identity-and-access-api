@@ -3,14 +3,14 @@ package com.telemed.identityaccess.adapter.out.persistence;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 public class UserJpaEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(name = "full_name", nullable = false, length = 160)
     private String fullName;
@@ -48,6 +48,7 @@ public class UserJpaEntity {
     }
 
     public UserJpaEntity(
+            UUID id,
             String fullName,
             String email,
             String identityDocument,
@@ -56,6 +57,7 @@ public class UserJpaEntity {
             boolean verified,
             boolean active
     ) {
+        this.id = id;
         this.fullName = fullName;
         this.email = email;
         this.identityDocument = identityDocument;
@@ -65,7 +67,7 @@ public class UserJpaEntity {
         this.active = active;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 

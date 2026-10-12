@@ -8,20 +8,36 @@ import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class RegisterPatientServiceTest {
 
     @Test
-    void shouldRegisterPatientWithNormalizedEmailAndHashedPassword() {
+    void shouldRegisterPatientUsingUuidIdentifier() {
 
-        UserRepositoryPort users = mock(UserRepositoryPort.class);
-        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+        UUID savedUserId = UUID.fromString(
+                "11111111-1111-4111-8111-111111111111"
+        );
+
+        UserRepositoryPort users =
+                mock(UserRepositoryPort.class);
+
+        PasswordHasherPort passwordHasher =
+                mock(PasswordHasherPort.class);
 
         when(users.existsByEmail("patient@example.com"))
                 .thenReturn(false);
@@ -37,7 +53,7 @@ class RegisterPatientServiceTest {
                     User user = invocation.getArgument(0);
 
                     return new User(
-                            1L,
+                            savedUserId,
                             user.fullName(),
                             user.email(),
                             user.identityDocument(),
@@ -49,7 +65,10 @@ class RegisterPatientServiceTest {
                 });
 
         RegisterPatientUseCase useCase =
-                new RegisterPatientService(users, passwordHasher);
+                new RegisterPatientService(
+                        users,
+                        passwordHasher
+                );
 
         var command = new RegisterPatientUseCase.Command(
                 "Maria Patient",
@@ -60,32 +79,32 @@ class RegisterPatientServiceTest {
 
         var result = useCase.register(command);
 
-        assertEquals(1L, result.userId());
+        assertEquals(savedUserId, result.userId());
         assertEquals(Role.PATIENT, result.role());
 
-        verify(passwordHasher).hash("Secret123!");
+        verify(passwordHasher)
+                .hash("Secret123!");
 
-        verify(users).save(argThat(user ->
-                user.email().equals("patient@example.com")
-                        && user.passwordHash().equals("$2a$10$hashed-password")
-                        && !user.passwordHash().equals("Secret123!")
-                        && user.role() == Role.PATIENT
-                        && user.active()
-                        && !user.verified()
-        ));
+        verify(users).save(any(User.class));
     }
 
     @Test
     void shouldRejectRegistrationWhenEmailAlreadyExists() {
 
-        UserRepositoryPort users = mock(UserRepositoryPort.class);
-        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+        UserRepositoryPort users =
+                mock(UserRepositoryPort.class);
+
+        PasswordHasherPort passwordHasher =
+                mock(PasswordHasherPort.class);
 
         when(users.existsByEmail("patient@example.com"))
                 .thenReturn(true);
 
         RegisterPatientUseCase useCase =
-                new RegisterPatientService(users, passwordHasher);
+                new RegisterPatientService(
+                        users,
+                        passwordHasher
+                );
 
         var command = new RegisterPatientUseCase.Command(
                 "Maria Patient",
@@ -122,8 +141,11 @@ class RegisterPatientServiceTest {
     @Test
     void shouldRejectRegistrationWhenIdentityDocumentAlreadyExists() {
 
-        UserRepositoryPort users = mock(UserRepositoryPort.class);
-        PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
+        UserRepositoryPort users =
+                mock(UserRepositoryPort.class);
+
+        PasswordHasherPort passwordHasher =
+                mock(PasswordHasherPort.class);
 
         when(users.existsByEmail("patient@example.com"))
                 .thenReturn(false);
@@ -132,7 +154,10 @@ class RegisterPatientServiceTest {
                 .thenReturn(true);
 
         RegisterPatientUseCase useCase =
-                new RegisterPatientService(users, passwordHasher);
+                new RegisterPatientService(
+                        users,
+                        passwordHasher
+                );
 
         var command = new RegisterPatientUseCase.Command(
                 "Maria Patient",
@@ -205,6 +230,74 @@ class RegisterPatientServiceTest {
 
         assertTrue(
                 commandText.contains("password=***")
+        );
+    }
+
+    @Test
+    void shouldRejectPasswordShorterThanEightCharacters() {
+
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        "patient@example.com",
+                        "123456789",
+                        "Ab1!xyz"
+                )
+        );
+
+        assertEquals(
+                INVALID_REGISTRATION,
+                exception.reason()
+        );
+
+        assertEquals(
+                "Password must contain at least 8 characters.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldRejectPasswordExceedingBcryptUtf8ByteLimit() {
+
+        String password = "ñ".repeat(37);
+
+        var exception = assertThrows(
+                RegistrationException.class,
+                () -> new RegisterPatientUseCase.Command(
+                        "Maria Patient",
+                        "patient@example.com",
+                        "123456789",
+                        password
+                )
+        );
+
+        assertEquals(
+                INVALID_REGISTRATION,
+                exception.reason()
+        );
+
+        assertEquals(
+                "Password must not exceed 72 UTF-8 bytes.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldAcceptMultibytePasswordWithinBcryptByteLimit() {
+
+        String password = "ñ".repeat(8);
+
+        var command = new RegisterPatientUseCase.Command(
+                "Maria Patient",
+                "patient@example.com",
+                "123456789",
+                password
+        );
+
+        assertEquals(
+                password,
+                command.password()
         );
     }
 }

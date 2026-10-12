@@ -7,24 +7,28 @@ import jakarta.validation.constraints.Size;
 public record RegisterPatientRequest(
 
         @NotBlank(message = "Full name is required.")
-        @Size(max = 150, message = "Full name must not exceed 150 characters.")
+        @Size(
+                max = 150,
+                message = "Full name must not exceed 150 characters."
+        )
         String fullName,
 
         @NotBlank(message = "Email is required.")
         @Email(message = "Email format is invalid.")
-        @Size(max = 180, message = "Email must not exceed 180 characters.")
+        @Size(
+                max = 180,
+                message = "Email must not exceed 180 characters."
+        )
         String email,
 
         @NotBlank(message = "Identity document is required.")
-        @Size(max = 50, message = "Identity document must not exceed 50 characters.")
+        @Size(
+                max = 50,
+                message = "Identity document must not exceed 50 characters."
+        )
         String identityDocument,
 
         @NotBlank(message = "Password is required.")
-        @Size(
-                min = 8,
-                max = 72,
-                message = "Password must contain between 8 and 72 characters."
-        )
         String password
 
 ) {
@@ -36,7 +40,9 @@ public record RegisterPatientRequest(
     }
 
     private static String normalize(String value) {
-        return value == null ? null : value.trim();
+        return value == null
+                ? null
+                : value.trim();
     }
 
     @Override
