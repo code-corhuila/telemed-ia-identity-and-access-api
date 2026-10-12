@@ -13,6 +13,8 @@ public interface UserRepositoryPort {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findById(UUID userId);
+
     User save(User user);
 
     void updatePasswordHash(
