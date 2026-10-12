@@ -31,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
+                "spring.liquibase.enabled=false",
                 "security.jwt.issuer=telemed-ia-identity-and-access",
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
@@ -58,15 +59,15 @@ class AuthenticationFlowE2ETest {
                     )
                     .withPassword(
                             "telemed_test"
-                    )
-                    .withInitScript(
-                            "e2e/identity-schema.sql"
                     );
 
     @DynamicPropertySource
     static void configureProperties(
             DynamicPropertyRegistry registry
     ) {
+
+        POSTGRES.start();
+        OfficialDatabaseSchemaInitializer.migrate(POSTGRES);
 
         registry.add(
                 "spring.datasource.url",
