@@ -1,7 +1,6 @@
 package com.telemed.identityaccess.adapter.in.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.in.RegisterPatientUseCase;
 import com.telemed.identityaccess.domain.model.Role;
 import org.junit.jupiter.api.Test;
@@ -14,8 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
-import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -87,16 +86,8 @@ class RegisterPatientControllerTest {
     }
 
     @Test
-    void shouldReturnBadRequestWhenCoreRejectsPassword()
+    void shouldReturnBadRequestBeforeInvokingUseCaseWhenPasswordExceedsBcryptLimit()
             throws Exception {
-
-        when(registerPatientUseCase.register(any()))
-                .thenThrow(
-                        new RegistrationException(
-                                INVALID_REGISTRATION,
-                                "Password must not exceed 72 UTF-8 bytes."
-                        )
-                );
 
         RegisterPatientRequest request =
                 new RegisterPatientRequest(
@@ -131,7 +122,7 @@ class RegisterPatientControllerTest {
                                 .isArray()
                 );
 
-        verify(registerPatientUseCase)
+        verify(registerPatientUseCase, never())
                 .register(any());
     }
 }
