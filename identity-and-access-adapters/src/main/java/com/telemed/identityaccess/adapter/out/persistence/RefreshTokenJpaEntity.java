@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.adapter.out.persistence;
 
+import com.telemed.identityaccess.domain.model.RefreshToken;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -45,21 +47,38 @@ public class RefreshTokenJpaEntity {
     )
     private OffsetDateTime expiresAt;
 
-    @Column(nullable = false)
+    @Column(
+            nullable = false
+    )
     private boolean revoked;
 
     protected RefreshTokenJpaEntity() {
     }
 
-    public RefreshTokenJpaEntity(
+    private RefreshTokenJpaEntity(
             UUID userId,
             String tokenHash,
-            OffsetDateTime expiresAt
+            OffsetDateTime expiresAt,
+            boolean revoked
     ) {
         this.userId = userId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
-        this.revoked = false;
+        this.revoked = revoked;
+    }
+
+    public static RefreshTokenJpaEntity fromDomain(
+            RefreshToken refreshToken
+    ) {
+        return new RefreshTokenJpaEntity(
+                refreshToken.userId(),
+                refreshToken.tokenHash(),
+                OffsetDateTime.ofInstant(
+                        refreshToken.expiresAt(),
+                        ZoneOffset.UTC
+                ),
+                refreshToken.revoked()
+        );
     }
 
     public Long getId() {

@@ -7,6 +7,7 @@ import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
+import com.telemed.identityaccess.domain.model.RefreshToken;
 import com.telemed.identityaccess.domain.model.User;
 
 public class LoginService implements LoginUseCase {
@@ -86,10 +87,15 @@ public class LoginService implements LoginUseCase {
         RefreshTokenProviderPort.IssuedRefreshToken refreshToken =
                 refreshTokens.issue();
 
+        RefreshToken storedRefreshToken =
+                RefreshToken.active(
+                        user.id(),
+                        refreshToken.tokenHash(),
+                        refreshToken.expiresAt()
+                );
+
         refreshTokenRepository.save(
-                user.id(),
-                refreshToken.tokenHash(),
-                refreshToken.expiresAt()
+                storedRefreshToken
         );
 
         return new Result(
