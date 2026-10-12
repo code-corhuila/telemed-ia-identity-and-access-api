@@ -1,3 +1,4 @@
+
 package com.telemed.identityaccess.adapter.out.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -6,9 +7,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public interface SpringDataPasswordResetTokenRepository
-        extends JpaRepository<PasswordResetTokenJpaEntity, Long> {
+        extends JpaRepository<PasswordResetTokenJpaEntity, UUID> {
 
     Optional<PasswordResetTokenJpaEntity> findByTokenHash(
             String tokenHash
@@ -22,7 +24,6 @@ public interface SpringDataPasswordResetTokenRepository
                and token.used = false
             """)
     int markUsedByTokenHash(
-            @Param("tokenHash")
-            String tokenHash
+            @Param("tokenHash") String tokenHash
     );
 }
