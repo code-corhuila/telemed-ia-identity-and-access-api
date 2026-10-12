@@ -3,31 +3,39 @@ package com.telemed.identityaccess.app.config;
 import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenProvider;
 import com.telemed.identityaccess.adapter.out.security.JwtAccessTokenVerifier;
 import com.telemed.identityaccess.adapter.out.security.JwtProperties;
+import com.telemed.identityaccess.adapter.out.security.PasswordResetTokenProperties;
 import com.telemed.identityaccess.adapter.out.security.RefreshTokenProperties;
+import com.telemed.identityaccess.adapter.out.security.SecurePasswordResetTokenProvider;
 import com.telemed.identityaccess.adapter.out.security.SecureRefreshTokenProvider;
 import com.telemed.identityaccess.adapter.out.security.Sha256RefreshTokenHasher;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
+import com.telemed.identityaccess.application.port.in.LogoutUseCase;
+import com.telemed.identityaccess.application.port.in.PasswordRecoveryUseCase;
 import com.telemed.identityaccess.application.port.in.RefreshSessionUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
+import com.telemed.identityaccess.application.port.out.PasswordResetTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenHasherPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.application.usecase.LoginService;
+import com.telemed.identityaccess.application.usecase.LogoutService;
+import com.telemed.identityaccess.application.usecase.PasswordRecoveryService;
 import com.telemed.identityaccess.application.usecase.RefreshSessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import com.telemed.identityaccess.application.port.in.LogoutUseCase;
-import com.telemed.identityaccess.application.usecase.LogoutService;
+
 import java.time.Clock;
 
 @Configuration
 @EnableConfigurationProperties({
         JwtProperties.class,
-        RefreshTokenProperties.class
+        RefreshTokenProperties.class,
+        PasswordResetTokenProperties.class
 })
 public class AuthenticationConfiguration {
 
@@ -73,6 +81,17 @@ public class AuthenticationConfiguration {
     }
 
     @Bean
+    PasswordResetTokenProviderPort passwordResetTokenProvider(
+            PasswordResetTokenProperties properties,
+            Clock authenticationClock
+    ) {
+        return new SecurePasswordResetTokenProvider(
+                properties,
+                authenticationClock
+        );
+    }
+
+    @Bean
     LoginUseCase loginUseCase(
             UserRepositoryPort users,
             PasswordHasherPort passwordHasher,
@@ -90,15 +109,15 @@ public class AuthenticationConfiguration {
     }
 
     @Bean
-LogoutUseCase logoutUseCase(
-        RefreshTokenRepositoryPort refreshTokens,
-        RefreshTokenHasherPort refreshTokenHasher
-) {
-    return new LogoutService(
-            refreshTokens,
-            refreshTokenHasher
-    );
-}
+    LogoutUseCase logoutUseCase(
+            RefreshTokenRepositoryPort refreshTokens,
+            RefreshTokenHasherPort refreshTokenHasher
+    ) {
+        return new LogoutService(
+                refreshTokens,
+                refreshTokenHasher
+        );
+    }
 
     @Bean
     RefreshSessionUseCase refreshSessionUseCase(
@@ -116,6 +135,19 @@ LogoutUseCase logoutUseCase(
                 accessTokens,
                 users,
                 authenticationClock
+        );
+    }
+
+    @Bean
+    PasswordRecoveryUseCase passwordRecoveryUseCase(
+            UserRepositoryPort users,
+            PasswordResetTokenProviderPort tokenProvider,
+            PasswordResetTokenRepositoryPort resetTokens
+    ) {
+        return new PasswordRecoveryService(
+                users,
+                tokenProvider,
+                resetTokens
         );
     }
 }
