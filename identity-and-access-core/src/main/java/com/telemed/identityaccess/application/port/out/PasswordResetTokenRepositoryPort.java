@@ -14,7 +14,7 @@ public interface PasswordResetTokenRepositoryPort {
             String tokenHash
     );
 
-    void markUsedByTokenHash(
+    boolean markUsedByTokenHash(
             String tokenHash
     );
 }
