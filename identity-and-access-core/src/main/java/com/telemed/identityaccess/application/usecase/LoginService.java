@@ -4,6 +4,8 @@ import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.domain.model.User;
 
@@ -15,16 +17,23 @@ public class LoginService implements LoginUseCase {
     private final UserRepositoryPort users;
     private final PasswordHasherPort passwordHasher;
     private final AccessTokenProviderPort accessTokens;
+    private final RefreshTokenProviderPort refreshTokens;
+    private final RefreshTokenRepositoryPort refreshTokenRepository;
     private final String dummyPasswordHash;
 
     public LoginService(
             UserRepositoryPort users,
             PasswordHasherPort passwordHasher,
-            AccessTokenProviderPort accessTokens
+            AccessTokenProviderPort accessTokens,
+            RefreshTokenProviderPort refreshTokens,
+            RefreshTokenRepositoryPort refreshTokenRepository
     ) {
         this.users = users;
         this.passwordHasher = passwordHasher;
         this.accessTokens = accessTokens;
+        this.refreshTokens = refreshTokens;
+        this.refreshTokenRepository = refreshTokenRepository;
+
         this.dummyPasswordHash =
                 passwordHasher.hash(DUMMY_PASSWORD);
     }
@@ -68,17 +77,28 @@ public class LoginService implements LoginUseCase {
             );
         }
 
-        AccessTokenProviderPort.IssuedAccessToken token =
+        AccessTokenProviderPort.IssuedAccessToken accessToken =
                 accessTokens.issue(
                         user.id(),
                         user.role()
                 );
 
+        RefreshTokenProviderPort.IssuedRefreshToken refreshToken =
+                refreshTokens.issue();
+
+        refreshTokenRepository.save(
+                user.id(),
+                refreshToken.tokenHash(),
+                refreshToken.expiresAt()
+        );
+
         return new Result(
                 user.id(),
                 user.role(),
-                token.value(),
-                token.expiresAt()
+                accessToken.value(),
+                accessToken.expiresAt(),
+                refreshToken.value(),
+                refreshToken.expiresAt()
         );
     }
 }
