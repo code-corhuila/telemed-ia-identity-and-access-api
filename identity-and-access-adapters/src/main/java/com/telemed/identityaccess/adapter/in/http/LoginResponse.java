@@ -4,9 +4,10 @@ import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.domain.model.Role;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record LoginResponse(
-        Long userId,
+        UUID userId,
         String role,
         String accessToken,
         String tokenType,

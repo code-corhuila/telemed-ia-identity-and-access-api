@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,6 +24,10 @@ class JwtAccessTokenProviderTest {
 
     private static final byte[] SECRET_BYTES =
             new byte[32];
+
+    private static final UUID USER_ID = UUID.fromString(
+            "22222222-2222-4222-8222-222222222222"
+    );
 
     @Test
     void shouldIssueTokenWithExpectedClaims() {
@@ -50,7 +55,7 @@ class JwtAccessTokenProviderTest {
 
         AccessTokenProviderPort.IssuedAccessToken issued =
                 provider.issue(
-                        42L,
+                        USER_ID,
                         Role.PATIENT
                 );
 
@@ -58,7 +63,7 @@ class JwtAccessTokenProviderTest {
                 .decode(issued.value());
 
         assertThat(jwt.getSubject())
-                .isEqualTo("42");
+                .isEqualTo(USER_ID.toString());
 
         assertThat(jwt.getClaimAsString("role"))
                 .isEqualTo("PATIENT");

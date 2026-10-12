@@ -67,7 +67,7 @@ public class JwtAccessTokenProvider
 
     @Override
     public IssuedAccessToken issue(
-            Long userId,
+            UUID userId,
             Role role
     ) {
 
