@@ -17,6 +17,9 @@ public final class AuthRoutes {
     public static final String PASSWORD_RECOVERY =
             "/password-recovery";
 
+    public static final String PASSWORD_RESET =
+            "/password-reset";
+
     public static final String SESSION_PATH =
             BASE + SESSION;
 
@@ -28,6 +31,9 @@ public final class AuthRoutes {
 
     public static final String PASSWORD_RECOVERY_PATH =
             BASE + PASSWORD_RECOVERY;
+
+    public static final String PASSWORD_RESET_PATH =
+            BASE + PASSWORD_RESET;
 
     private AuthRoutes() {
     }
