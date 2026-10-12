@@ -3,6 +3,7 @@ package com.telemed.identityaccess;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
+import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private RefreshTokenRepositoryPort refreshTokenRepository;
+
+    @MockBean
+    private PasswordResetTokenRepositoryPort passwordResetTokenRepository;
 
     @Test
     void contextLoads() {
