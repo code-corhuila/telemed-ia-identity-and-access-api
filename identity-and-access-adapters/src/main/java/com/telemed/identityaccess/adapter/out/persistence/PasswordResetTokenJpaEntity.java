@@ -45,6 +45,13 @@ public class PasswordResetTokenJpaEntity {
     @Column(nullable = false)
     private boolean used;
 
+    @Column(
+            name = "superseded_at",
+            insertable = false,
+            updatable = false
+    )
+    private OffsetDateTime supersededAt;
+
     protected PasswordResetTokenJpaEntity() {
     }
 
@@ -96,5 +103,9 @@ public class PasswordResetTokenJpaEntity {
 
     public boolean isUsed() {
         return used;
+    }
+
+    public OffsetDateTime getSupersededAt() {
+        return supersededAt;
     }
 }

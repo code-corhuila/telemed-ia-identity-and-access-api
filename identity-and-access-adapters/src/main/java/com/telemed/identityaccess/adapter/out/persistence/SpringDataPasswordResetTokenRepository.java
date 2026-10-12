@@ -12,16 +12,24 @@ import java.util.UUID;
 public interface SpringDataPasswordResetTokenRepository
         extends JpaRepository<PasswordResetTokenJpaEntity, UUID> {
 
+    @Query("""
+            SELECT token
+            FROM PasswordResetTokenJpaEntity token
+            WHERE token.tokenHash = :tokenHash
+              AND token.supersededAt IS NULL
+            """)
     Optional<PasswordResetTokenJpaEntity> findByTokenHash(
-            String tokenHash
+            @Param("tokenHash") String tokenHash
     );
 
     @Modifying
     @Query("""
-            update PasswordResetTokenJpaEntity token
-               set token.used = true
-             where token.tokenHash = :tokenHash
-               and token.used = false
+            UPDATE PasswordResetTokenJpaEntity token
+            SET token.used = true
+            WHERE token.tokenHash = :tokenHash
+              AND token.used = false
+              AND token.supersededAt IS NULL
+              AND token.expiresAt > CURRENT_TIMESTAMP
             """)
     int markUsedByTokenHash(
             @Param("tokenHash") String tokenHash
