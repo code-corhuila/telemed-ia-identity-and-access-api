@@ -1,6 +1,8 @@
 package com.telemed.identityaccess.application.port.in;
-import java.time.Instant;
+
 import com.telemed.identityaccess.domain.model.Role;
+
+import java.time.Instant;
 import java.util.UUID;
 
 public interface LoginUseCase {
@@ -19,7 +21,9 @@ public interface LoginUseCase {
         }
 
         private static String normalizeEmail(String value) {
-            return value == null ? null : value.trim();
+            return value == null
+                    ? null
+                    : value.trim();
         }
 
         private static void requireText(
@@ -36,7 +40,9 @@ public interface LoginUseCase {
             UUID userId,
             Role role,
             String accessToken,
-            Instant expiresAt
+            Instant expiresAt,
+            String refreshToken,
+            Instant refreshExpiresAt
     ) {
     }
 }
