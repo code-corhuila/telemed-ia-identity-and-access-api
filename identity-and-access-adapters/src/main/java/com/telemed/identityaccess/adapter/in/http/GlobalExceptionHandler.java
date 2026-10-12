@@ -115,6 +115,28 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(MissingAuthenticatedPrincipalException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingAuthenticatedPrincipal(
+            MissingAuthenticatedPrincipalException exception,
+            HttpServletRequest request
+    ) {
+
+        log.warn(
+                "Authenticated request reached controller without principal."
+        );
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+                "UNAUTHORIZED",
+                "Authentication is required.",
+                Map.of(),
+                getTraceId(request)
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpectedException(
             Exception exception,
