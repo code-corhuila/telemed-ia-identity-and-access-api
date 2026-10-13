@@ -6,7 +6,8 @@ import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
-
+import com.telemed.identityaccess.application.exception.PasswordHashUpdateException;
+import org.springframework.dao.DataAccessException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,26 +58,31 @@ public class UserPersistenceAdapter
         return users.findById(userId)
                 .map(this::toDomain);
     }
+        @Override
+        public void updatePasswordHash(
+                UUID userId,
+                String passwordHash
+        ) {
+        try {
+                int updatedRows =
+                        users.updatePasswordHashById(
+                                userId,
+                                passwordHash
+                        );
 
-    @Override
-    public void updatePasswordHash(
-            UUID userId,
-            String passwordHash
-    ) {
-
-        int updatedRows =
-                users.updatePasswordHashById(
-                        userId,
-                        passwordHash
+                if (updatedRows != 1) {
+                throw new PasswordHashUpdateException(
+                        "Password hash could not be updated."
                 );
+                }
 
-        if (updatedRows != 1) {
-            throw new IllegalStateException(
-                    "Password hash could not be updated."
-            );
+        } catch (DataAccessException exception) {
+                throw new PasswordHashUpdateException(
+                        "Password hash could not be updated.",
+                        exception
+                );
         }
-    }
-
+        }
     @Override
     public User save(User user) {
 

@@ -13,6 +13,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -65,7 +66,6 @@ class AuthenticationFlowE2ETest {
     static void configureProperties(
             DynamicPropertyRegistry registry
     ) {
-
         POSTGRES.start();
         OfficialDatabaseSchemaInitializer.migrate(POSTGRES);
 
@@ -73,29 +73,21 @@ class AuthenticationFlowE2ETest {
                 "spring.datasource.url",
                 POSTGRES::getJdbcUrl
         );
-
         registry.add(
                 "spring.datasource.username",
                 POSTGRES::getUsername
         );
-
         registry.add(
                 "spring.datasource.password",
                 POSTGRES::getPassword
         );
-
         registry.add(
                 "security.jwt.private-key",
-                () -> privateKeyPem(
-                        RSA_KEY_PAIR
-                )
+                () -> privateKeyPem(RSA_KEY_PAIR)
         );
-
         registry.add(
                 "security.jwt.public-key",
-                () -> publicKeyPem(
-                        RSA_KEY_PAIR
-                )
+                () -> publicKeyPem(RSA_KEY_PAIR)
         );
     }
 
@@ -107,6 +99,9 @@ class AuthenticationFlowE2ETest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void shouldCompleteAuthenticationFlow()
@@ -130,38 +125,24 @@ class AuthenticationFlowE2ETest {
                 postJson(
                         baseUrl + "/register",
                         Map.of(
-                                "fullName",
-                                "E2E Patient",
-                                "email",
-                                email,
-                                "identityDocument",
-                                identityDocument,
-                                "password",
-                                PASSWORD
+                                "fullName", "E2E Patient",
+                                "email", email,
+                                "identityDocument", identityDocument,
+                                "password", PASSWORD
                         )
                 );
 
-        assertThat(
-                registerResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.CREATED
-        );
+        assertThat(registerResponse.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
 
         JsonNode registered =
-                objectMapper.readTree(
-                        registerResponse.getBody()
-                );
+                objectMapper.readTree(registerResponse.getBody());
 
         String userId =
-                registered.get("userId")
-                        .asText();
+                registered.get("userId").asText();
 
-        assertThat(
-                registered.get("role")
-                        .asText()
-        ).isEqualTo(
-                "PATIENT"
-        );
+        assertThat(registered.get("role").asText())
+                .isEqualTo("PATIENT");
 
         /*
          * 2. LOGIN
@@ -170,37 +151,24 @@ class AuthenticationFlowE2ETest {
                 postJson(
                         baseUrl + "/login",
                         Map.of(
-                                "email",
-                                email,
-                                "password",
-                                PASSWORD
+                                "email", email,
+                                "password", PASSWORD
                         )
                 );
 
-        assertThat(
-                loginResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.OK
-        );
+        assertThat(loginResponse.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         JsonNode login =
-                objectMapper.readTree(
-                        loginResponse.getBody()
-                );
+                objectMapper.readTree(loginResponse.getBody());
 
         String firstAccessToken =
-                login.get("accessToken")
-                        .asText();
-
+                login.get("accessToken").asText();
         String firstRefreshToken =
-                login.get("refreshToken")
-                        .asText();
+                login.get("refreshToken").asText();
 
-        assertThat(firstAccessToken)
-                .isNotBlank();
-
-        assertThat(firstRefreshToken)
-                .isNotBlank();
+        assertThat(firstAccessToken).isNotBlank();
+        assertThat(firstRefreshToken).isNotBlank();
 
         /*
          * 3. SESSION WITH FIRST ACCESS TOKEN
@@ -211,30 +179,16 @@ class AuthenticationFlowE2ETest {
                         firstAccessToken
                 );
 
-        assertThat(
-                firstSessionResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.OK
-        );
+        assertThat(firstSessionResponse.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         JsonNode firstSession =
-                objectMapper.readTree(
-                        firstSessionResponse.getBody()
-                );
+                objectMapper.readTree(firstSessionResponse.getBody());
 
-        assertThat(
-                firstSession.get("userId")
-                        .asText()
-        ).isEqualTo(
-                userId
-        );
-
-        assertThat(
-                firstSession.get("role")
-                        .asText()
-        ).isEqualTo(
-                "PATIENT"
-        );
+        assertThat(firstSession.get("userId").asText())
+                .isEqualTo(userId);
+        assertThat(firstSession.get("role").asText())
+                .isEqualTo("PATIENT");
 
         /*
          * 4. REFRESH / ROTATION
@@ -242,41 +196,24 @@ class AuthenticationFlowE2ETest {
         ResponseEntity<String> refreshResponse =
                 postJson(
                         baseUrl + "/refresh",
-                        Map.of(
-                                "refreshToken",
-                                firstRefreshToken
-                        )
+                        Map.of("refreshToken", firstRefreshToken)
                 );
 
-        assertThat(
-                refreshResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.OK
-        );
+        assertThat(refreshResponse.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         JsonNode refresh =
-                objectMapper.readTree(
-                        refreshResponse.getBody()
-                );
+                objectMapper.readTree(refreshResponse.getBody());
 
         String secondAccessToken =
-                refresh.get("accessToken")
-                        .asText();
-
+                refresh.get("accessToken").asText();
         String secondRefreshToken =
-                refresh.get("refreshToken")
-                        .asText();
+                refresh.get("refreshToken").asText();
 
-        assertThat(secondAccessToken)
-                .isNotBlank();
-
+        assertThat(secondAccessToken).isNotBlank();
+        assertThat(secondRefreshToken).isNotBlank();
         assertThat(secondRefreshToken)
-                .isNotBlank();
-
-        assertThat(secondRefreshToken)
-                .isNotEqualTo(
-                        firstRefreshToken
-                );
+                .isNotEqualTo(firstRefreshToken);
 
         /*
          * 5. OLD REFRESH TOKEN MUST NOT BE REUSABLE
@@ -284,29 +221,17 @@ class AuthenticationFlowE2ETest {
         ResponseEntity<String> reusedRefreshResponse =
                 postJson(
                         baseUrl + "/refresh",
-                        Map.of(
-                                "refreshToken",
-                                firstRefreshToken
-                        )
+                        Map.of("refreshToken", firstRefreshToken)
                 );
 
-        assertThat(
-                reusedRefreshResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.UNAUTHORIZED
-        );
+        assertThat(reusedRefreshResponse.getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
 
         JsonNode reusedRefreshError =
-                objectMapper.readTree(
-                        reusedRefreshResponse.getBody()
-                );
+                objectMapper.readTree(reusedRefreshResponse.getBody());
 
-        assertThat(
-                reusedRefreshError.get("error")
-                        .asText()
-        ).isEqualTo(
-                "INVALID_REFRESH_TOKEN"
-        );
+        assertThat(reusedRefreshError.get("error").asText())
+                .isEqualTo("INVALID_REFRESH_TOKEN");
 
         /*
          * 6. SESSION WITH ROTATED ACCESS TOKEN
@@ -317,23 +242,14 @@ class AuthenticationFlowE2ETest {
                         secondAccessToken
                 );
 
-        assertThat(
-                secondSessionResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.OK
-        );
+        assertThat(secondSessionResponse.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         JsonNode secondSession =
-                objectMapper.readTree(
-                        secondSessionResponse.getBody()
-                );
+                objectMapper.readTree(secondSessionResponse.getBody());
 
-        assertThat(
-                secondSession.get("userId")
-                        .asText()
-        ).isEqualTo(
-                userId
-        );
+        assertThat(secondSession.get("userId").asText())
+                .isEqualTo(userId);
 
         /*
          * 7. LOGOUT
@@ -341,17 +257,11 @@ class AuthenticationFlowE2ETest {
         ResponseEntity<String> logoutResponse =
                 postJson(
                         baseUrl + "/logout",
-                        Map.of(
-                                "refreshToken",
-                                secondRefreshToken
-                        )
+                        Map.of("refreshToken", secondRefreshToken)
                 );
 
-        assertThat(
-                logoutResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.NO_CONTENT
-        );
+        assertThat(logoutResponse.getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
 
         /*
          * 8. LOGGED-OUT REFRESH TOKEN MUST NOT WORK
@@ -359,50 +269,167 @@ class AuthenticationFlowE2ETest {
         ResponseEntity<String> afterLogoutResponse =
                 postJson(
                         baseUrl + "/refresh",
-                        Map.of(
-                                "refreshToken",
-                                secondRefreshToken
-                        )
+                        Map.of("refreshToken", secondRefreshToken)
                 );
 
-        assertThat(
-                afterLogoutResponse.getStatusCode()
-        ).isEqualTo(
-                HttpStatus.UNAUTHORIZED
-        );
+        assertThat(afterLogoutResponse.getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
 
         JsonNode afterLogoutError =
-                objectMapper.readTree(
-                        afterLogoutResponse.getBody()
+                objectMapper.readTree(afterLogoutResponse.getBody());
+
+        assertThat(afterLogoutError.get("error").asText())
+                .isEqualTo("INVALID_REFRESH_TOKEN");
+    }
+
+    @Test
+    void shouldRejectDuplicateEmailRegistrationWithoutCreatingUser()
+            throws Exception {
+
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String email = "duplicate.email.e2e@example.com";
+
+        ResponseEntity<String> first = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "First E2E Patient",
+                        "email", email,
+                        "identityDocument", "E2E-DUP-EMAIL-101",
+                        "password", PASSWORD
+                )
+        );
+
+        assertThat(first.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> duplicate = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "Second E2E Patient",
+                        "email", "DUPLICATE.EMAIL.E2E@example.com",
+                        "identityDocument", "E2E-DUP-EMAIL-102",
+                        "password", PASSWORD
+                )
+        );
+
+        assertThat(duplicate.getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        JsonNode error = objectMapper.readTree(duplicate.getBody());
+
+        assertThat(error.path("error").asText())
+                .isEqualTo("REGISTRATION_CONFLICT");
+        assertThat(error.path("message").asText())
+                .isEqualTo(
+                        "Registration cannot be completed "
+                                + "with the provided data."
                 );
 
-        assertThat(
-                afterLogoutError.get("error")
-                        .asText()
-        ).isEqualTo(
-                "INVALID_REFRESH_TOKEN"
+        Integer registeredUsers = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM users
+                WHERE LOWER(email) = LOWER(?)
+                """,
+                Integer.class,
+                email
         );
+
+        assertThat(registeredUsers)
+                .as("Duplicate email must not create another user")
+                .isEqualTo(1);
+
+        Integer rejectedDocumentCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM users
+                WHERE identity_document = ?
+                """,
+                Integer.class,
+                "E2E-DUP-EMAIL-102"
+        );
+
+        assertThat(rejectedDocumentCount).isZero();
+    }
+
+    @Test
+    void shouldRejectDuplicateIdentityDocumentWithoutCreatingUser()
+            throws Exception {
+
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String identityDocument = "E2E-DUP-DOC-103";
+
+        ResponseEntity<String> first = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "First Document Patient",
+                        "email", "first.document.e2e@example.com",
+                        "identityDocument", identityDocument,
+                        "password", PASSWORD
+                )
+        );
+
+        assertThat(first.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> duplicate = postJson(
+                baseUrl + "/register",
+                Map.of(
+                        "fullName", "Second Document Patient",
+                        "email", "second.document.e2e@example.com",
+                        "identityDocument", identityDocument,
+                        "password", PASSWORD
+                )
+        );
+
+        assertThat(duplicate.getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        JsonNode error = objectMapper.readTree(duplicate.getBody());
+
+        assertThat(error.path("error").asText())
+                .isEqualTo("REGISTRATION_CONFLICT");
+
+        Integer documentCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM users
+                WHERE identity_document = ?
+                """,
+                Integer.class,
+                identityDocument
+        );
+
+        assertThat(documentCount)
+                .as("Duplicate document must not create another user")
+                .isEqualTo(1);
+
+        Integer rejectedEmailCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM users
+                WHERE email = ?
+                """,
+                Integer.class,
+                "second.document.e2e@example.com"
+        );
+
+        assertThat(rejectedEmailCount).isZero();
     }
 
     private ResponseEntity<String> postJson(
             String url,
             Object body
     ) {
-
-        HttpHeaders headers =
-                new HttpHeaders();
-
-        headers.setContentType(
-                MediaType.APPLICATION_JSON
-        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
         return http.exchange(
                 url,
                 HttpMethod.POST,
-                new HttpEntity<>(
-                        body,
-                        headers
-                ),
+                new HttpEntity<>(body, headers),
                 String.class
         );
     }
@@ -411,37 +438,23 @@ class AuthenticationFlowE2ETest {
             String url,
             String accessToken
     ) {
-
-        HttpHeaders headers =
-                new HttpHeaders();
-
-        headers.setBearerAuth(
-                accessToken
-        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
 
         return http.exchange(
                 url,
                 HttpMethod.GET,
-                new HttpEntity<>(
-                        null,
-                        headers
-                ),
+                new HttpEntity<>(null, headers),
                 String.class
         );
     }
 
     private static KeyPair generateRsaKeyPair() {
-
         try {
             KeyPairGenerator generator =
-                    KeyPairGenerator.getInstance(
-                            "RSA"
-                    );
-
+                    KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
-
             return generator.generateKeyPair();
-
         } catch (Exception exception) {
             throw new IllegalStateException(
                     "Unable to generate RSA test keys.",
@@ -450,25 +463,17 @@ class AuthenticationFlowE2ETest {
         }
     }
 
-    private static String privateKeyPem(
-            KeyPair keyPair
-    ) {
-
+    private static String privateKeyPem(KeyPair keyPair) {
         return pem(
                 "PRIVATE KEY",
-                keyPair.getPrivate()
-                        .getEncoded()
+                keyPair.getPrivate().getEncoded()
         );
     }
 
-    private static String publicKeyPem(
-            KeyPair keyPair
-    ) {
-
+    private static String publicKeyPem(KeyPair keyPair) {
         return pem(
                 "PUBLIC KEY",
-                keyPair.getPublic()
-                        .getEncoded()
+                keyPair.getPublic().getEncoded()
         );
     }
 
@@ -476,22 +481,13 @@ class AuthenticationFlowE2ETest {
             String label,
             byte[] encoded
     ) {
+        String body = Base64.getMimeEncoder(
+                64,
+                new byte[]{'\n'}
+        ).encodeToString(encoded);
 
-        String body =
-                Base64.getMimeEncoder(
-                                64,
-                                new byte[]{'\n'}
-                        )
-                        .encodeToString(
-                                encoded
-                        );
-
-        return "-----BEGIN "
-                + label
-                + "-----\n"
+        return "-----BEGIN " + label + "-----\n"
                 + body
-                + "\n-----END "
-                + label
-                + "-----";
+                + "\n-----END " + label + "-----";
     }
 }
