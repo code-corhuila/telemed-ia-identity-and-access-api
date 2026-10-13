@@ -3,6 +3,7 @@ package com.telemed.identityaccess.application.port.out;
 import com.telemed.identityaccess.domain.model.User;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public interface UserRepositoryPort {
 
@@ -12,10 +13,12 @@ public interface UserRepositoryPort {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findById(UUID userId);
+
     User save(User user);
-    
+
     void updatePasswordHash(
-        Long userId,
-        String passwordHash
-);
+            UUID userId,
+            String passwordHash
+    );
 }

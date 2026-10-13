@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+import com.telemed.identityaccess.application.exception.RefreshSessionException;
+import com.telemed.identityaccess.application.exception.LogoutException;
+import com.telemed.identityaccess.application.exception.PasswordResetException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -86,6 +88,77 @@ public class GlobalExceptionHandler {
         };
     }
 
+    @ExceptionHandler(PasswordResetException.class)
+public ResponseEntity<ApiErrorResponse> handlePasswordResetException(
+        PasswordResetException exception,
+        HttpServletRequest request
+) {
+
+    String error = switch (exception.reason()) {
+        case INVALID_RESET_TOKEN ->
+                "INVALID_RESET_TOKEN";
+
+        case INVALID_NEW_PASSWORD ->
+                "INVALID_NEW_PASSWORD";
+    };
+
+    HttpStatus status = switch (exception.reason()) {
+        case INVALID_RESET_TOKEN ->
+                HttpStatus.UNAUTHORIZED;
+
+        case INVALID_NEW_PASSWORD ->
+                HttpStatus.BAD_REQUEST;
+    };
+
+    ApiErrorResponse response =
+            ApiErrorResponse.of(
+                    error,
+                    exception.getMessage(),
+                    Map.of(),
+                    getTraceId(request)
+            );
+
+    return ResponseEntity
+            .status(status)
+            .body(response);
+}
+
+    @ExceptionHandler(RefreshSessionException.class)
+public ResponseEntity<ApiErrorResponse> handleRefreshSessionException(
+        RefreshSessionException exception,
+        HttpServletRequest request
+) {
+
+    ApiErrorResponse response = ApiErrorResponse.of(
+            "INVALID_REFRESH_TOKEN",
+            "Refresh token is invalid or expired.",
+            Map.of(),
+            getTraceId(request)
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(response);
+}
+
+@ExceptionHandler(LogoutException.class)
+public ResponseEntity<ApiErrorResponse> handleLogoutException(
+        LogoutException exception,
+        HttpServletRequest request
+) {
+
+    ApiErrorResponse response = ApiErrorResponse.of(
+            "INVALID_REFRESH_TOKEN",
+            "Refresh token is invalid.",
+            Map.of(),
+            getTraceId(request)
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(response);
+}
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
             MethodArgumentNotValidException exception,
@@ -112,6 +185,28 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(MissingAuthenticatedPrincipalException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingAuthenticatedPrincipal(
+            MissingAuthenticatedPrincipalException exception,
+            HttpServletRequest request
+    ) {
+
+        log.warn(
+                "Authenticated request reached controller without principal."
+        );
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+                "UNAUTHORIZED",
+                "Authentication is required.",
+                Map.of(),
+                getTraceId(request)
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
                 .body(response);
     }
 

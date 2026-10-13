@@ -6,14 +6,17 @@ import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
-
+import com.telemed.identityaccess.application.exception.PasswordHashUpdateException;
+import org.springframework.dao.DataAccessException;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
 @Repository
-public class UserPersistenceAdapter implements UserRepositoryPort {
+public class UserPersistenceAdapter
+        implements UserRepositoryPort {
 
     private final SpringDataUserRepository users;
     private final SpringDataRoleRepository roles;
@@ -32,70 +35,105 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     }
 
     @Override
-    public boolean existsByIdentityDocument(String identityDocument) {
-        return users.existsByIdentityDocument(identityDocument);
+    public boolean existsByIdentityDocument(
+            String identityDocument
+    ) {
+        return users.existsByIdentityDocument(
+                identityDocument
+        );
     }
 
     @Override
-    public Optional<User> findByEmail(String email) {
+    public Optional<User> findByEmail(
+            String email
+    ) {
         return users.findByEmailIgnoreCase(email)
                 .map(this::toDomain);
     }
 
     @Override
-public void updatePasswordHash(
-        Long userId,
-        String passwordHash
-) {
-
-    int updatedRows =
-            users.updatePasswordHashById(
-                    userId,
-                    passwordHash
-            );
-
-    if (updatedRows != 1) {
-        throw new IllegalStateException(
-                "Password hash could not be updated."
-        );
+    public Optional<User> findById(
+            UUID userId
+    ) {
+        return users.findById(userId)
+                .map(this::toDomain);
     }
-}
+        @Override
+        public void updatePasswordHash(
+                UUID userId,
+                String passwordHash
+        ) {
+        try {
+                int updatedRows =
+                        users.updatePasswordHashById(
+                                userId,
+                                passwordHash
+                        );
 
+                if (updatedRows != 1) {
+                throw new PasswordHashUpdateException(
+                        "Password hash could not be updated."
+                );
+                }
+
+        } catch (DataAccessException exception) {
+                throw new PasswordHashUpdateException(
+                        "Password hash could not be updated.",
+                        exception
+                );
+        }
+        }
     @Override
     public User save(User user) {
 
-        RoleJpaEntity role = roles.findByName(user.role().name())
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "Required role is not configured."
+        RoleJpaEntity role =
+                roles.findByName(
+                                user.role().name()
                         )
-                );
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Required role is not configured."
+                                )
+                        );
 
-        UserJpaEntity entity = new UserJpaEntity(
-                user.fullName(),
-                user.email(),
-                user.identityDocument(),
-                role,
-                user.passwordHash(),
-                user.verified(),
-                user.active()
-        );
+        UUID userId =
+                user.id() != null
+                        ? user.id()
+                        : UUID.randomUUID();
+
+        UserJpaEntity entity =
+                new UserJpaEntity(
+                        userId,
+                        user.fullName(),
+                        user.email(),
+                        user.identityDocument(),
+                        role,
+                        user.passwordHash(),
+                        user.verified(),
+                        user.active()
+                );
 
         UserJpaEntity saved;
 
         try {
-            saved = users.saveAndFlush(entity);
+            saved = users.saveAndFlush(
+                    entity
+            );
 
         } catch (DataIntegrityViolationException exception) {
 
-            if (users.existsByEmailIgnoreCase(user.email())) {
+            if (users.existsByEmailIgnoreCase(
+                    user.email()
+            )) {
                 throw new RegistrationException(
                         EMAIL_ALREADY_REGISTERED,
                         "Email is already registered."
                 );
             }
 
-            if (users.existsByIdentityDocument(user.identityDocument())) {
+            if (users.existsByIdentityDocument(
+                    user.identityDocument()
+            )) {
                 throw new RegistrationException(
                         IDENTITY_DOCUMENT_ALREADY_REGISTERED,
                         "Identity document is already registered."
@@ -108,14 +146,19 @@ public void updatePasswordHash(
         return toDomain(saved);
     }
 
-    private User toDomain(UserJpaEntity entity) {
+    private User toDomain(
+            UserJpaEntity entity
+    ) {
+
         return new User(
                 entity.getId(),
                 entity.getFullName(),
                 entity.getEmail(),
                 entity.getIdentityDocument(),
                 entity.getPasswordHash(),
-                Role.valueOf(entity.getRole().getName()),
+                Role.valueOf(
+                        entity.getRole().getName()
+                ),
                 entity.isActive(),
                 entity.isVerified()
         );

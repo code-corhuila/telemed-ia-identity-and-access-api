@@ -4,13 +4,16 @@ import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.domain.model.Role;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record LoginResponse(
-        Long userId,
+        UUID userId,
         String role,
         String accessToken,
         String tokenType,
-        Instant expiresAt
+        Instant expiresAt,
+        String refreshToken,
+        Instant refreshExpiresAt
 ) {
 
     private static final String TOKEN_TYPE = "Bearer";
@@ -23,7 +26,9 @@ public record LoginResponse(
                 toApiRole(result.role()),
                 result.accessToken(),
                 TOKEN_TYPE,
-                result.expiresAt()
+                result.expiresAt(),
+                result.refreshToken(),
+                result.refreshExpiresAt()
         );
     }
 
