@@ -55,3 +55,6 @@ security:
 
   password-reset-token:
     ttl: ${PASSWORD_RESET_TOKEN_TTL:PT30M}
+
+  password-recovery:
+    reset-url: ${PASSWORD_RESET_URL:http://localhost:4200/reset-password}

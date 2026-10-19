@@ -20,6 +20,8 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-telemed-ia-identity-and-access}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT1H}
 
+      PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
+
       # Paths inside the container.
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem

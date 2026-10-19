@@ -14,6 +14,7 @@ import com.telemed.identityaccess.application.port.in.PasswordRecoveryUseCase;
 import com.telemed.identityaccess.application.port.in.RefreshSessionUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
+import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
@@ -39,7 +40,8 @@ import java.time.Clock;
 @EnableConfigurationProperties({
         JwtProperties.class,
         RefreshTokenProperties.class,
-        PasswordResetTokenProperties.class
+        PasswordResetTokenProperties.class,
+        PasswordRecoveryProperties.class
 })
 public class AuthenticationConfiguration {
 
@@ -175,12 +177,26 @@ public class AuthenticationConfiguration {
     PasswordRecoveryUseCase passwordRecoveryUseCase(
             UserRepositoryPort users,
             PasswordResetTokenProviderPort tokenProvider,
-            PasswordResetTokenRepositoryPort resetTokens
+            PasswordResetTokenRepositoryPort resetTokens,
+            IntegrationEventOutboxPort outbox,
+            PasswordRecoveryProperties properties,
+            PlatformTransactionManager transactionManager
     ) {
-        return new PasswordRecoveryService(
+        PasswordRecoveryUseCase delegate = new PasswordRecoveryService(
                 users,
                 tokenProvider,
-                resetTokens
+                resetTokens,
+                outbox,
+                properties.resetUrl()
         );
+
+        // The reset token and its outbox event commit or roll back together.
+        TransactionTemplate transaction =
+                new TransactionTemplate(transactionManager);
+
+        return email ->
+                transaction.executeWithoutResult(status ->
+                        delegate.requestRecovery(email)
+                );
     }
 }
