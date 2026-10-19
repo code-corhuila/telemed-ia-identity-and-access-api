@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: code-corhuila/telemed-ia-identity-and-access-db
-          ref: 62c4fa4b74397ed0710f082bcc23f6cc8180da56
+          ref: ebf2aae11a107eaf89f702e3cd1143440500732d
           path: .e2e/identity-db
           persist-credentials: false
 
