@@ -13,7 +13,9 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PasswordResetTokenPersistenceAdapterTest {
@@ -49,6 +51,9 @@ class PasswordResetTokenPersistenceAdapterTest {
                         TOKEN_HASH,
                         expiresAt
                 );
+
+        when(repository.saveAndFlush(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         adapter.save(token);
 

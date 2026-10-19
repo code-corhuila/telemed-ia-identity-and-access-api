@@ -50,6 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
                 "security.password-reset-token.ttl=PT30M",
+                "security.password-recovery.reset-url="
+                        + PasswordRecoveryFlowE2ETest.RESET_URL,
                 "management.server.port=0"
         }
 )
@@ -67,6 +69,9 @@ class PasswordRecoveryFlowE2ETest {
 
     private static final String RESET_TOKEN =
             "e2e-password-reset-token";
+
+    static final String RESET_URL =
+            "https://portal.e2e.test/reset-password";
 
     private static final KeyPair RSA_KEY_PAIR =
             generateRsaKeyPair();
@@ -744,6 +749,176 @@ class PasswordRecoveryFlowE2ETest {
                         "newPassword", newPassword
                 )
         );
+    }
+
+    @Test
+    void shouldRecordRecoveryEventInOutboxWithIssuedToken()
+            throws Exception {
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String email =
+                "recovery.outbox@example.com";
+
+        registerPatient(baseUrl, email, "RECOVERY-OUTBOX-100");
+
+        ResponseEntity<String> recoveryResponse =
+                postJson(
+                        baseUrl + "/password-recovery",
+                        Map.of("email", email)
+                );
+
+        assertThat(recoveryResponse.getStatusCode())
+                .isEqualTo(HttpStatus.ACCEPTED);
+
+        Map<String, Object> row =
+                jdbcTemplate.queryForMap(
+                        """
+                        SELECT e.event_type,
+                               e.aggregate_id,
+                               e.payload::text AS payload,
+                               e.published_at,
+                               u.id AS user_id,
+                               t.id AS token_id
+                        FROM identity_outbox_event e
+                        JOIN users u ON u.id = e.aggregate_id
+                        JOIN password_reset_tokens t ON t.token_hash = ?
+                        WHERE u.email = ?
+                        """,
+                        sha256(RESET_TOKEN),
+                        email
+                );
+
+        assertThat(row.get("event_type"))
+                .isEqualTo("PasswordRecoveryRequested");
+        assertThat(row.get("aggregate_id"))
+                .isEqualTo(row.get("user_id"));
+        assertThat(row.get("published_at")).isNull();
+
+        JsonNode payload =
+                objectMapper.readTree(
+                        (String) row.get("payload")
+                );
+
+        assertThat(payload.get("email").asText())
+                .isEqualTo(email);
+        assertThat(payload.get("recoveryTokenId").asText())
+                .isEqualTo(row.get("token_id").toString());
+        assertThat(payload.get("resetUrl").asText())
+                .isEqualTo(RESET_URL + "#token=" + RESET_TOKEN);
+        assertThat(payload.has("tokenHash")).isFalse();
+    }
+
+    @Test
+    void shouldNotRecordRecoveryEventForUnknownEmail() {
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String email =
+                "unknown.outbox@example.com";
+
+        ResponseEntity<String> recoveryResponse =
+                postJson(
+                        baseUrl + "/password-recovery",
+                        Map.of("email", email)
+                );
+
+        assertThat(recoveryResponse.getStatusCode())
+                .isEqualTo(HttpStatus.ACCEPTED);
+
+        Integer events =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM identity_outbox_event
+                        WHERE payload ->> 'email' = ?
+                        """,
+                        Integer.class,
+                        email
+                );
+
+        assertThat(events).isZero();
+    }
+
+    @Test
+    void shouldNotKeepResetTokenWhenOutboxEventCannotBeRecorded() {
+        String baseUrl =
+                "http://localhost:" + port + "/api/v1/auth";
+        String email =
+                "recovery.outbox.failure@example.com";
+
+        registerPatient(baseUrl, email, "RECOVERY-OUTBOX-200");
+
+        jdbcTemplate.execute(
+                """
+                CREATE FUNCTION e2e_reject_outbox_event()
+                RETURNS trigger
+                LANGUAGE plpgsql
+                AS $$
+                BEGIN
+                    RAISE EXCEPTION 'E2E outbox failure';
+                END
+                $$
+                """
+        );
+        jdbcTemplate.execute(
+                """
+                CREATE TRIGGER e2e_reject_outbox_event
+                BEFORE INSERT ON identity_outbox_event
+                FOR EACH ROW
+                EXECUTE FUNCTION e2e_reject_outbox_event()
+                """
+        );
+
+        try {
+            ResponseEntity<String> recoveryResponse =
+                    postJson(
+                            baseUrl + "/password-recovery",
+                            Map.of("email", email)
+                    );
+
+            assertThat(recoveryResponse.getStatusCode())
+                    .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        } finally {
+            jdbcTemplate.execute(
+                    "DROP TRIGGER IF EXISTS e2e_reject_outbox_event "
+                            + "ON identity_outbox_event"
+            );
+            jdbcTemplate.execute(
+                    "DROP FUNCTION IF EXISTS e2e_reject_outbox_event()"
+            );
+        }
+
+        Integer tokens =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM password_reset_tokens
+                        WHERE token_hash = ?
+                        """,
+                        Integer.class,
+                        sha256(RESET_TOKEN)
+                );
+
+        assertThat(tokens).isZero();
+    }
+
+    private void registerPatient(
+            String baseUrl,
+            String email,
+            String identityDocument
+    ) {
+        ResponseEntity<String> registerResponse =
+                postJson(
+                        baseUrl + "/register",
+                        Map.of(
+                                "fullName", "Recovery Outbox Patient",
+                                "email", email,
+                                "identityDocument", identityDocument,
+                                "password", OLD_PASSWORD
+                        )
+                );
+
+        assertThat(registerResponse.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
     }
 
     private ResponseEntity<String> postJson(
