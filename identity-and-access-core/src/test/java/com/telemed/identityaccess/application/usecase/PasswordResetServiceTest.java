@@ -19,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -239,6 +240,51 @@ class PasswordResetServiceTest {
                 .hash(
                         org.mockito.ArgumentMatchers.anyString()
                 );
+
+        verify(passwordHasher, never())
+                .hash(
+                        org.mockito.ArgumentMatchers.anyString()
+                );
+    }
+
+    @Test
+    void shouldRejectNewPasswordShorterThanEightCharacters() {
+        assertThatThrownBy(
+                () -> service.reset(
+                        "plain-reset-token",
+                        "Short1!"
+                )
+        ).isInstanceOfSatisfying(
+                PasswordResetException.class,
+                exception -> assertThat(exception.reason())
+                        .isEqualTo(
+                                PasswordResetException.Reason.INVALID_NEW_PASSWORD
+                        )
+        );
+
+        verify(tokenHasher, never())
+                .hash(
+                        org.mockito.ArgumentMatchers.anyString()
+                );
+    }
+
+    @Test
+    void shouldRejectNewPasswordLongerThanBcryptLimit() {
+        // 37 two-byte characters: 74 UTF-8 bytes.
+        String tooLong = "ñ".repeat(37);
+
+        assertThatThrownBy(
+                () -> service.reset(
+                        "plain-reset-token",
+                        tooLong
+                )
+        ).isInstanceOfSatisfying(
+                PasswordResetException.class,
+                exception -> assertThat(exception.reason())
+                        .isEqualTo(
+                                PasswordResetException.Reason.INVALID_NEW_PASSWORD
+                        )
+        );
 
         verify(passwordHasher, never())
                 .hash(
