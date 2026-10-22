@@ -110,7 +110,8 @@ class RefreshSessionServiceTest {
 
         when(accessTokens.issue(
                 USER_ID,
-                Role.PATIENT
+                Role.PATIENT,
+                "Patient Test"
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
                         "new-access-token",
@@ -181,6 +182,7 @@ class RefreshSessionServiceTest {
 
         verify(accessTokens, never())
                 .issue(
+                        org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any()
                 );
