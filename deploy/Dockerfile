@@ -7,7 +7,9 @@ COPY identity-and-access-core ./identity-and-access-core
 COPY identity-and-access-adapters ./identity-and-access-adapters
 COPY identity-and-access-app ./identity-and-access-app
 
-RUN mvn -B clean verify
+# Tests run in CI (mvn -B verify), where Docker is available for the
+# Testcontainers end-to-end suite; inside docker build there is no Docker.
+RUN mvn -B clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 
