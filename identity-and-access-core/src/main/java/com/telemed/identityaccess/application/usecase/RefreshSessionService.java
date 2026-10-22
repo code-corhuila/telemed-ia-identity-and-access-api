@@ -75,7 +75,8 @@ public class RefreshSessionService
         AccessTokenProviderPort.IssuedAccessToken accessToken =
                 accessTokens.issue(
                         user.id(),
-                        user.role()
+                        user.role(),
+                        user.fullName()
                 );
 
         RefreshTokenProviderPort.IssuedRefreshToken issuedRefreshToken =
