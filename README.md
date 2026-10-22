@@ -166,6 +166,12 @@ Run using Docker Compose:
 docker compose --env-file .env -f deploy/compose.yml up --build
 ```
 
+The service joins the external `platform` Docker network, where the API gateway reaches it as `identity-api:8081`. Create the network once if it does not exist:
+
+```sh
+docker network create platform
+```
+
 The API image does not create database schemas and does not execute migrations.
 
 The database connection configured through `DB_URL` must be reachable from inside the container.
