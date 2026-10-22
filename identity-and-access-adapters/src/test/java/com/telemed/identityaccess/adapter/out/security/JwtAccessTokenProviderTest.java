@@ -79,7 +79,8 @@ class JwtAccessTokenProviderTest {
         AccessTokenProviderPort.IssuedAccessToken issued =
                 provider.issue(
                         USER_ID,
-                        Role.PATIENT
+                        Role.PATIENT,
+                        "Ana María Rojas"
                 );
 
         Jwt jwt = decoder(
@@ -95,6 +96,9 @@ class JwtAccessTokenProviderTest {
 
         assertThat(jwt.getClaimAsString("role"))
                 .isEqualTo("PATIENT");
+
+        assertThat(jwt.getClaimAsString("name"))
+                .isEqualTo("Ana María Rojas");
 
         assertThat(jwt.getClaimAsString("iss"))
                 .isEqualTo(
@@ -149,7 +153,8 @@ class JwtAccessTokenProviderTest {
 
         String token = provider.issue(
                 USER_ID,
-                Role.PATIENT
+                Role.PATIENT,
+                "Ana María Rojas"
         ).value();
 
         KeyPairGenerator generator =
