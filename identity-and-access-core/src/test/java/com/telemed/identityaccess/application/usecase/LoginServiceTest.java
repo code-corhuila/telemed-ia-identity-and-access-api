@@ -94,7 +94,8 @@ class LoginServiceTest {
 
         when(accessTokens.issue(
                 USER_ID,
-                Role.PATIENT
+                Role.PATIENT,
+                "Patient Test"
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
                         "access-token",
@@ -132,7 +133,7 @@ class LoginServiceTest {
                 user.passwordHash()
         );
 
-        verify(accessTokens).issue(USER_ID, Role.PATIENT);
+        verify(accessTokens).issue(USER_ID, Role.PATIENT, "Patient Test");
         verify(refreshTokens).issue();
 
         verify(refreshTokenRepository).save(
@@ -167,7 +168,7 @@ class LoginServiceTest {
         );
 
         verify(accessTokens, never())
-                .issue(any(UUID.class), any());
+                .issue(any(UUID.class), any(), any());
 
         verify(refreshTokens, never()).issue();
 
@@ -200,7 +201,7 @@ class LoginServiceTest {
         );
 
         verify(accessTokens, never())
-                .issue(any(UUID.class), any());
+                .issue(any(UUID.class), any(), any());
 
         verify(refreshTokens, never()).issue();
 
@@ -229,7 +230,7 @@ class LoginServiceTest {
         Instant accessExpiresAt =
                 Instant.parse("2026-09-26T15:00:00Z");
 
-        when(accessTokens.issue(USER_ID, Role.PATIENT))
+        when(accessTokens.issue(USER_ID, Role.PATIENT, "Patient Test"))
                 .thenReturn(
                         new AccessTokenProviderPort.IssuedAccessToken(
                                 "access-token",
@@ -275,7 +276,8 @@ class LoginServiceTest {
 
         verify(accessTokens).issue(
                 USER_ID,
-                Role.PATIENT
+                Role.PATIENT,
+                "Patient Test"
         );
 
         verify(refreshTokens).issue();
@@ -332,7 +334,8 @@ class LoginServiceTest {
 
         when(accessTokens.issue(
                 USER_ID,
-                Role.PATIENT
+                Role.PATIENT,
+                "Patient Test"
         )).thenReturn(
                 new AccessTokenProviderPort.IssuedAccessToken(
                         "access-token",
@@ -412,7 +415,7 @@ class LoginServiceTest {
         );
 
         verify(accessTokens, never())
-                .issue(any(UUID.class), any());
+                .issue(any(UUID.class), any(), any());
 
         verify(refreshTokens, never()).issue();
 
