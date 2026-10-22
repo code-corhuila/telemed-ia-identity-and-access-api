@@ -46,7 +46,7 @@ public class JwtAccessTokenProvider implements AccessTokenProviderPort {
     }
 
     @Override
-    public IssuedAccessToken issue(UUID userId, Role role) {
+    public IssuedAccessToken issue(UUID userId, Role role, String name) {
         Instant issuedAt = clock.instant();
         Instant expiresAt = issuedAt.plus(properties.accessTokenTtl());
 
@@ -57,6 +57,7 @@ public class JwtAccessTokenProvider implements AccessTokenProviderPort {
                 .expiresAt(expiresAt)
                 .id(UUID.randomUUID().toString())
                 .claim("role", role.name())
+                .claim("name", name)
                 .build();
 
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)
