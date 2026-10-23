@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -198,6 +199,24 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
                 "VALIDATION_ERROR",
                 "Request validation failed.",
                 fieldErrors,
+                getTraceId(request)
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    // A body that is not valid JSON (or not the expected shape) is the caller's error, not ours.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableBody(
+            HttpServletRequest request
+    ) {
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+                "VALIDATION_ERROR",
+                "Malformed request body.",
+                Map.of(),
                 getTraceId(request)
         );
 
