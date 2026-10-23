@@ -62,6 +62,17 @@ class ServiceTokenControllerTest {
     }
 
     @Test
+    void answersBadRequestForAMalformedBody() throws Exception {
+        mockMvc.perform(post("/internal/service-token")
+                        .header("X-Correlation-Id", "trace-0002")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{bad json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.traceId").value("trace-0002"));
+    }
+
+    @Test
     void needsBothCredentials() throws Exception {
         mockMvc.perform(post("/internal/service-token")
                         .contentType(MediaType.APPLICATION_JSON)

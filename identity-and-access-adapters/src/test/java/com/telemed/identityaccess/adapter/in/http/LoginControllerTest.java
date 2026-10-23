@@ -407,4 +407,18 @@ class LoginControllerTest {
         verify(loginUseCase, never())
                 .login(any());
     }
+
+    // The same handler serves every endpoint: a body that cannot be read is the caller's error.
+    @Test
+    void shouldAnswerBadRequestForAMalformedBody()
+            throws Exception {
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"email\": ")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
 }
