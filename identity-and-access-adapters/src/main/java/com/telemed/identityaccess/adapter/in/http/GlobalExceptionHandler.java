@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.telemed.identityaccess.application.exception.RefreshSessionException;
 import com.telemed.identityaccess.application.exception.LogoutException;
 import com.telemed.identityaccess.application.exception.PasswordResetException;
+import com.telemed.identityaccess.application.exception.ServiceAuthenticationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -86,6 +87,23 @@ public class GlobalExceptionHandler {
                         .body(response);
             }
         };
+    }
+
+    @ExceptionHandler(ServiceAuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleServiceAuthenticationException(
+            HttpServletRequest request
+    ) {
+
+        log.warn("Service token request rejected.");
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiErrorResponse.of(
+                        "INVALID_CLIENT",
+                        "Invalid service client credentials.",
+                        Map.of(),
+                        getTraceId(request)
+                ));
     }
 
     @ExceptionHandler(PasswordResetException.class)

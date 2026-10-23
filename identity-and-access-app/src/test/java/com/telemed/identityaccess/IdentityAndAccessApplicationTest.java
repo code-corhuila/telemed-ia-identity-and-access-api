@@ -7,6 +7,7 @@ import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPor
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
+import com.telemed.identityaccess.application.port.out.ServiceTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private AccessTokenProviderPort accessTokenProvider;
+
+    @MockBean
+    private ServiceTokenProviderPort serviceTokenProvider;
 
     @MockBean
     private AccessTokenVerifierPort accessTokenVerifier;
