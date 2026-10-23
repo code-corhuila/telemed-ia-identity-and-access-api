@@ -4,8 +4,11 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
 
+    # Only the gateway is published (Anexo G 5.6.1): the API, including
+    # /internal/service-token, is reachable only inside the platform network.
+    expose:
+      - "8081"
     ports:
-      - "${PORT:-8081}:8081"
       - "127.0.0.1:${MANAGEMENT_PORT:-9081}:9081"
 
     environment:
