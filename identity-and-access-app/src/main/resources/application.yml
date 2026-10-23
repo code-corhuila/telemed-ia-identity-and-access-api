@@ -58,3 +58,9 @@ security:
 
   password-recovery:
     reset-url: ${PASSWORD_RESET_URL:http://localhost:4200/auth/reset-password}
+
+  # Norma 5.7: services (document generation, the worker...) ask POST /internal/service-token.
+  # "client-id:bcrypt-hash,client-id:bcrypt-hash"; empty means no service may get a token.
+  service-clients: ${SERVICE_CLIENTS:}
+  service-token:
+    ttl: ${SERVICE_TOKEN_TTL:PT10M}

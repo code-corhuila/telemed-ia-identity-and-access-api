@@ -22,6 +22,10 @@ services:
 
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
 
+      # Service clients allowed to ask for a service token (only bcrypt hashes, see .env.example).
+      SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}
+      SERVICE_TOKEN_TTL: ${SERVICE_TOKEN_TTL:-PT10M}
+
       # Paths inside the container.
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem
