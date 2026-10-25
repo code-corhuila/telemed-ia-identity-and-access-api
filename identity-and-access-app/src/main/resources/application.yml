@@ -41,6 +41,12 @@ management:
       probes:
         enabled: true
 
+  # A broker outage must not take identity out of rotation: events wait in
+  # the outbox and the relay publishes them once RabbitMQ is back.
+  health:
+    rabbit:
+      enabled: false
+
 security:
   jwt:
     issuer: ${JWT_ISSUER:telemed-ia-identity-and-access}
