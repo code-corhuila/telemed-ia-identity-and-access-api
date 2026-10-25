@@ -98,4 +98,12 @@ public class UserJpaEntity {
     public boolean isActive() {
         return active;
     }
+
+    public OffsetDateTime getRegistrationDate() {
+        return registrationDate;
+    }
+
+    public OffsetDateTime getLastAccess() {
+        return lastAccess;
+    }
 }

@@ -89,6 +89,11 @@ public class UserPersistenceAdapter
         }
         }
     @Override
+    public void recordLastAccess(UUID userId) {
+        users.updateLastAccessById(userId);
+    }
+
+    @Override
     public User save(User user) {
 
         RoleJpaEntity role =
