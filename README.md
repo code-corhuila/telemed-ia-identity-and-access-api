@@ -225,7 +225,7 @@ Administrators view the registered accounts under `/api/v1/auth/admin/accounts`,
 
 Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`, `registrationDate` and `lastAccess` (RFC 3339 UTC; `null` before the first sign-in). Every successful login stamps `lastAccess`. The password hash is never returned.
 
-`PATCH /api/v1/auth/admin/accounts/{id}/status` with `{"active": false}` blocks an account and `{"active": true}` restores it, answering the updated account. Repeating the current value changes nothing.
+`PUT /api/v1/auth/admin/accounts/{id}/status` with `{"active": false}` blocks an account and `{"active": true}` restores it, answering the updated account. Repeating the current value changes nothing.
 
 - A blocked account cannot sign in or refresh its session: all its refresh tokens are revoked in the same transaction. An access token it already holds stays valid until it expires (`JWT_ACCESS_TOKEN_TTL`, one hour by default), because every service validates tokens locally.
 - `409 ACCOUNT_STATUS_CONFLICT` when an administrator tries to block their own account or the last active administrator. The active administrators are counted with `FOR UPDATE`, so two administrators blocking each other cannot both succeed.
