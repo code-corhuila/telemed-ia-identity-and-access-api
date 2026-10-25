@@ -3,6 +3,7 @@ package com.telemed.identityaccess.app.config;
 import com.telemed.identityaccess.adapter.out.security.JwtProperties;
 import com.telemed.identityaccess.adapter.out.security.JwtServiceTokenVerifier;
 import com.telemed.identityaccess.application.exception.RegistrationException;
+import com.telemed.identityaccess.application.port.in.FindNotificationRecipientUseCase;
 import com.telemed.identityaccess.application.port.in.LookupProfessionalAccountsUseCase;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase;
 import com.telemed.identityaccess.application.port.out.AccountDirectoryPort;
@@ -10,6 +11,7 @@ import com.telemed.identityaccess.application.port.out.IdempotencyKeyRepositoryP
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.ServiceTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
+import com.telemed.identityaccess.application.usecase.FindNotificationRecipientService;
 import com.telemed.identityaccess.application.usecase.LookupProfessionalAccountsService;
 import com.telemed.identityaccess.application.usecase.ProvisionProfessionalAccountService;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +20,10 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** /internal/accounts: professional management creates professional accounts and reads their names. */
+/**
+ * /internal/accounts: professional management creates professional accounts and reads their names.
+ * /internal/notification-recipients: notifications reads the e-mail of the patient it writes to.
+ */
 @Configuration
 public class AccountProvisioningConfiguration {
 
@@ -34,6 +39,13 @@ public class AccountProvisioningConfiguration {
             AccountDirectoryPort directory
     ) {
         return new LookupProfessionalAccountsService(directory);
+    }
+
+    @Bean
+    FindNotificationRecipientUseCase findNotificationRecipientUseCase(
+            AccountDirectoryPort directory
+    ) {
+        return new FindNotificationRecipientService(directory);
     }
 
     @Bean
