@@ -112,6 +112,8 @@ public class LoginService implements LoginUseCase {
                 storedRefreshToken
         );
 
+        users.recordLastAccess(user.id());
+
         return new Result(
                 user.id(),
                 user.role(),

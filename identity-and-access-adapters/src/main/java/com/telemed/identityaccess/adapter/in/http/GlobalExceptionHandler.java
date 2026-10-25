@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.adapter.in.http;
 
+import com.telemed.identityaccess.application.exception.AccountNotFoundException;
 import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
@@ -58,6 +59,37 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(response);
+    }
+
+    @ExceptionHandler(InvalidQueryParametersException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidQueryParameters(
+            InvalidQueryParametersException exception,
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(
+                        "VALIDATION_ERROR",
+                        "Request validation failed.",
+                        exception.fieldErrors(),
+                        getTraceId(request)
+                ));
+    }
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountNotFound(
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiErrorResponse.of(
+                        "NOT_FOUND",
+                        "Account not found.",
+                        Map.of(),
+                        getTraceId(request)
+                ));
     }
 
     @ExceptionHandler(AccountProvisioningException.class)

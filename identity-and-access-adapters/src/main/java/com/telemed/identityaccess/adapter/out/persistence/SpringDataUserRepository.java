@@ -1,6 +1,7 @@
 package com.telemed.identityaccess.adapter.out.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,7 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SpringDataUserRepository
-        extends JpaRepository<UserJpaEntity, UUID> {
+        extends JpaRepository<UserJpaEntity, UUID>,
+        JpaSpecificationExecutor<UserJpaEntity> {
 
     boolean existsByEmailIgnoreCase(String email);
 
@@ -37,5 +39,18 @@ public interface SpringDataUserRepository
     int updatePasswordHashById(
             @Param("userId") UUID userId,
             @Param("passwordHash") String passwordHash
+    );
+
+    @Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
+    @Transactional
+    @Query(
+            value = "UPDATE users SET last_access = CURRENT_TIMESTAMP WHERE id = :userId",
+            nativeQuery = true
+    )
+    int updateLastAccessById(
+            @Param("userId") UUID userId
     );
 }
