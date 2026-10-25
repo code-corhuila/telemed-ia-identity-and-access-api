@@ -37,6 +37,14 @@ services:
       BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT: ${BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
 
+      # HU-03 outbox relay to RabbitMQ (exchange identity.events), reached
+      # over the platform network.
+      OUTBOX_RELAY_ENABLED: ${OUTBOX_RELAY_ENABLED:-true}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD (the broker user of the platform network)}
+
       # Paths inside the container.
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem
