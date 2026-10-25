@@ -18,8 +18,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Guards /internal/accounts (create and look up) before the body is read: 401 without a valid token signed by
- * identity, 403 unless it is a service token of a client in security.account-provisioning.clients.
+ * Guards the internal endpoints before the body is read: 401 without a valid token signed by identity, 403
+ * unless it is a service token of a client allowed for that path. /internal/accounts (create and look up)
+ * takes security.account-provisioning.clients; /internal/notification-recipients takes
+ * security.notification-recipients.clients.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -27,26 +29,38 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
 
     private final ServiceTokenVerifierPort serviceTokens;
     private final ApiErrorWriter errors;
-    private final Set<String> allowedClients;
+    private final Set<String> provisioningClients;
+    private final Set<String> notificationRecipientClients;
 
     public ServiceCallerFilter(
             ServiceTokenVerifierPort serviceTokens,
             ApiErrorWriter errors,
-            @Value("${security.account-provisioning.clients:}") String allowedClients
+            @Value("${security.account-provisioning.clients:}") String provisioningClients,
+            @Value("${security.notification-recipients.clients:}") String notificationRecipientClients
     ) {
         this.serviceTokens = serviceTokens;
         this.errors = errors;
-        this.allowedClients = Arrays.stream(allowedClients.split(","))
-                .map(String::trim)
-                .filter(client -> !client.isEmpty())
-                .collect(Collectors.toUnmodifiableSet());
+        this.provisioningClients = clients(provisioningClients);
+        this.notificationRecipientClients = clients(notificationRecipientClients);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !InternalAccountsController.PATH.equals(
-                request.getRequestURI().substring(request.getContextPath().length()))
+        return allowedClients(request) == null
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    /** The clients allowed for the request's path, or null when this filter does not guard it. */
+    private Set<String> allowedClients(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+
+        if (InternalAccountsController.PATH.equals(path)) {
+            return provisioningClients;
+        }
+        if (path.startsWith(InternalNotificationRecipientsController.PATH + "/")) {
+            return notificationRecipientClients;
+        }
+        return null;
     }
 
     @Override
@@ -74,7 +88,7 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (allowedClients.stream().noneMatch(caller::isService)) {
+        if (allowedClients(request).stream().noneMatch(caller::isService)) {
             errors.write(
                     request,
                     response,
@@ -86,6 +100,13 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static Set<String> clients(String configured) {
+        return Arrays.stream(configured.split(","))
+                .map(String::trim)
+                .filter(client -> !client.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private void unauthorized(

@@ -251,6 +251,14 @@ Professionals never register themselves: professional management creates their a
 
 `GET /internal/accounts?ids=<uuid>,<uuid>` (1 to 100 ids, same callers) answers `{"data": [{"id", "fullName", "email"}]}` so professional management can show the names of the professionals it lists. Only `PROFESSIONAL` accounts are answered: unknown ids and accounts of any other role are left out, so this endpoint never reveals patients or administrators. Ids that are not UUIDs get `400 VALIDATION_ERROR`.
 
+### Notification recipients (internal)
+
+Notifications e-mails patients about their appointments (HU-17); identity owns the address.
+`GET /internal/notification-recipients/{id}` answers `{"id", "email"}` of an **active patient**.
+
+- **Caller:** a service token of a client listed in `NOTIFICATION_RECIPIENTS_CLIENTS` (default `notifications`); `401` and `403` as above. These clients may not use `/internal/accounts`, and the clients of `/internal/accounts` may not use this endpoint.
+- Any other account (unknown, blocked, professional or administrator) gets `404 NOT_FOUND`; an id that is not a UUID gets `400 VALIDATION_ERROR`.
+
 ## Error Handling and Correlation
 
 The public error contract uses the following structure:
