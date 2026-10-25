@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class PasswordResetTokenPersistenceAdapter
@@ -22,7 +23,7 @@ public class PasswordResetTokenPersistenceAdapter
     }
 
     @Override
-    public void save(
+    public UUID save(
             PasswordResetToken passwordResetToken
     ) {
         PasswordResetTokenJpaEntity entity =
@@ -31,7 +32,8 @@ public class PasswordResetTokenPersistenceAdapter
                 );
 
         try {
-            tokens.saveAndFlush(entity);
+            return tokens.saveAndFlush(entity)
+                    .getId();
 
         } catch (DataAccessException exception) {
             throw new IllegalStateException(

@@ -3,6 +3,7 @@ package com.telemed.identityaccess;
 
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
+import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
@@ -39,6 +40,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private PasswordResetTokenRepositoryPort passwordResetTokenRepository;
+
+    @MockBean
+    private IntegrationEventOutboxPort integrationEventOutbox;
 
     @MockBean
     private PlatformTransactionManager transactionManager;

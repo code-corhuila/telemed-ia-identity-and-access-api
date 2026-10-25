@@ -7,6 +7,7 @@ import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
+import com.telemed.identityaccess.domain.model.PasswordPolicy;
 import com.telemed.identityaccess.domain.model.PasswordResetToken;
 
 import java.time.Clock;
@@ -45,7 +46,9 @@ public class PasswordResetService
         }
 
         if (newPassword == null
-                || newPassword.isBlank()) {
+                || newPassword.isBlank()
+                || PasswordPolicy.isTooShort(newPassword)
+                || PasswordPolicy.isTooLong(newPassword)) {
             throw PasswordResetException.invalidNewPassword();
         }
 
