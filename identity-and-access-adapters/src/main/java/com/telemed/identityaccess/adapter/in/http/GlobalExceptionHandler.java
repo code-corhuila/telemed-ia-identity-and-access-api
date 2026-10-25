@@ -12,9 +12,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.telemed.identityaccess.application.exception.RefreshSessionException;
 import com.telemed.identityaccess.application.exception.LogoutException;
 import com.telemed.identityaccess.application.exception.PasswordResetException;
@@ -341,6 +345,38 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(response);
+    }
+
+    // Spring marks these with their 4xx status (and headers such as Allow): the caller's mistake.
+    @ExceptionHandler({
+            HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class,
+            NoResourceFoundException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleRequestNotMapped(
+            ErrorResponse exception,
+            HttpServletRequest request
+    ) {
+
+        HttpStatus status = HttpStatus.valueOf(
+                exception.getStatusCode().value()
+        );
+
+        String message = switch (status) {
+            case METHOD_NOT_ALLOWED -> "The HTTP method is not supported for this path.";
+            case UNSUPPORTED_MEDIA_TYPE -> "The request body must be application/json.";
+            default -> "Resource not found.";
+        };
+
+        return ResponseEntity
+                .status(status)
+                .headers(exception.getHeaders())
+                .body(ApiErrorResponse.of(
+                        status.name(),
+                        message,
+                        Map.of(),
+                        getTraceId(request)
+                ));
     }
 
     @ExceptionHandler(Exception.class)
