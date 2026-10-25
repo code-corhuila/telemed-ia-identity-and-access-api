@@ -192,6 +192,20 @@ ADMIN
 
 Passwords are never stored in plain text and are hashed using BCrypt.
 
+### Bootstrap administrator
+
+Public registration only creates patients, so the first `ADMIN` comes from the environment: `BOOTSTRAP_ADMIN_FULL_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT` and `BOOTSTRAP_ADMIN_PASSWORD` (see `.env.example`). At startup:
+
+| Situation | Result |
+|---|---|
+| No variable set | Nothing is created |
+| An `ADMIN` already exists | Nothing changes; logs `bootstrap admin already present` |
+| No `ADMIN` and all four set | Creates an active, verified `ADMIN`; logs `bootstrap admin created` |
+| The email or document belongs to another account | That account is never promoted; logs a warning |
+| Only some variables set, or a password outside the policy | The service refuses to start |
+
+It is a one-time bootstrap, not a way to manage the password: changing the variables later does not update the existing admin, and they may be emptied once it exists. Each environment uses its own values, which are never committed or logged. A forced password change on the first login is a future improvement that needs a new column in the `-db` repository.
+
 Authentication credentials, tokens, password hashes, private keys, and other secrets must never be committed to the repository or written to application logs.
 
 The final authentication design uses RS256 for JWT access tokens.
