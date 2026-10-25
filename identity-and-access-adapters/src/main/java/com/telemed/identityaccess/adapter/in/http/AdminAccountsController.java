@@ -9,8 +9,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -117,7 +117,7 @@ public class AdminAccountsController {
     }
 
     /** Blocks (false) or restores (true) the access of an account; repeating it changes nothing. */
-    @PatchMapping("/{id}/status")
+    @PutMapping("/{id}/status")
     public AccountResponse changeStatus(
             @PathVariable String id,
             @Valid @RequestBody AccountStatusRequest request,
