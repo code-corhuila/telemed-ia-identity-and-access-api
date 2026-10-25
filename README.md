@@ -225,6 +225,13 @@ Administrators view the registered accounts under `/api/v1/auth/admin/accounts`,
 
 Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`, `registrationDate` and `lastAccess` (RFC 3339 UTC; `null` before the first sign-in). Every successful login stamps `lastAccess`. The password hash is never returned.
 
+`PATCH /api/v1/auth/admin/accounts/{id}/status` with `{"active": false}` blocks an account and `{"active": true}` restores it, answering the updated account. Repeating the current value changes nothing.
+
+- A blocked account cannot sign in or refresh its session: all its refresh tokens are revoked in the same transaction. An access token it already holds stays valid until it expires (`JWT_ACCESS_TOKEN_TTL`, one hour by default), because every service validates tokens locally.
+- `409 ACCOUNT_STATUS_CONFLICT` when an administrator tries to block their own account or the last active administrator. The active administrators are counted with `FOR UPDATE`, so two administrators blocking each other cannot both succeed.
+- `403 FORBIDDEN` when the requester's own account is no longer an active administrator, even with a token that has not expired.
+- This is the account status, not the professional profile status that professional management owns (HU-05 AC3).
+
 ### Professional accounts (internal)
 
 Professionals never register themselves: professional management creates their account with `POST /internal/accounts`, inside the `platform` network only (the gateway does not route `/internal`).

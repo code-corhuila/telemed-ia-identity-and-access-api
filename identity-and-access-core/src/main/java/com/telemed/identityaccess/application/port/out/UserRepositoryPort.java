@@ -23,6 +23,11 @@ public interface UserRepositoryPort {
     /** Stamps the database time as the account's last sign-in. */
     void recordLastAccess(UUID userId);
 
+    void updateActive(UUID userId, boolean active);
+
+    /** Counts the active accounts of a role and locks them until the transaction ends. */
+    long countActiveByRoleLocking(Role role);
+
     void updatePasswordHash(
             UUID userId,
             String passwordHash

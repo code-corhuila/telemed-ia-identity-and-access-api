@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class RefreshTokenPersistenceAdapter
@@ -137,5 +138,19 @@ public class RefreshTokenPersistenceAdapter
                 entity.getExpiresAt().toInstant(),
                 entity.isRevoked()
         );
+    }
+
+    @Override
+    @Transactional
+    public void revokeAllForUser(UUID userId) {
+        try {
+            tokens.revokeAllByUserId(userId);
+
+        } catch (DataAccessException exception) {
+            throw new RefreshTokenPersistenceException(
+                    "Refresh tokens could not be revoked.",
+                    exception
+            );
+        }
     }
 }

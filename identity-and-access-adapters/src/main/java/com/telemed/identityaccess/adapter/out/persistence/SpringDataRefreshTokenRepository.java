@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public interface SpringDataRefreshTokenRepository
         extends JpaRepository<RefreshTokenJpaEntity, Long> {
@@ -23,5 +24,16 @@ public interface SpringDataRefreshTokenRepository
             """)
     int revokeByTokenHash(
             @Param("tokenHash") String tokenHash
+    );
+
+    @Modifying
+    @Query("""
+            update RefreshTokenJpaEntity token
+            set token.revoked = true
+            where token.userId = :userId
+              and token.revoked = false
+            """)
+    int revokeAllByUserId(
+            @Param("userId") UUID userId
     );
 }
