@@ -13,7 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -162,14 +161,13 @@ class AdminAccountStatusFlowE2ETest {
     }
 
     private ResponseEntity<String> changeStatus(String token, String accountId, boolean active) {
-        // HttpURLConnection, the default, cannot send PATCH.
-        http.getRestTemplate().setRequestFactory(new JdkClientHttpRequestFactory());
+        // PUT, not PATCH: the shell's apiClient offers get, post, put and delete.
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         headers.setContentType(MediaType.APPLICATION_JSON);
         return http.exchange(
                 "http://localhost:" + port + "/api/v1/auth/admin/accounts/" + accountId + "/status",
-                HttpMethod.PATCH,
+                HttpMethod.PUT,
                 new HttpEntity<>(Map.of("active", active), headers),
                 String.class
         );
