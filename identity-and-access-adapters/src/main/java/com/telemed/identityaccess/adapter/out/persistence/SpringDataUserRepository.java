@@ -18,6 +18,8 @@ public interface SpringDataUserRepository
             String identityDocument
     );
 
+    boolean existsByRoleName(String roleName);
+
     Optional<UserJpaEntity> findByEmailIgnoreCase(
             String email
     );
