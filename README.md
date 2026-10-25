@@ -249,6 +249,8 @@ Professionals never register themselves: professional management creates their a
 | Invalid field or `Idempotency-Key` | `400 VALIDATION_ERROR` with `details` |
 | Password outside the policy | `400 INVALID_REGISTRATION` |
 
+`GET /internal/accounts?ids=<uuid>,<uuid>` (1 to 100 ids, same callers) answers `{"data": [{"id", "fullName", "email"}]}` so professional management can show the names of the professionals it lists. Only `PROFESSIONAL` accounts are answered: unknown ids and accounts of any other role are left out, so this endpoint never reveals patients or administrators. Ids that are not UUIDs get `400 VALIDATION_ERROR`.
+
 ## Error Handling and Correlation
 
 The public error contract uses the following structure:

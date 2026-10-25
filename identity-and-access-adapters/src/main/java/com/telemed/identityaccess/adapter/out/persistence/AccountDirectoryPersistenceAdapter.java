@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -58,6 +59,16 @@ public class AccountDirectoryPersistenceAdapter
     @Transactional(readOnly = true)
     public Optional<AccountView> findById(UUID accountId) {
         return users.findById(accountId).map(this::toView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountView> findByIdsAndRole(Collection<UUID> accountIds, Role role) {
+        Specification<UserJpaEntity> idsOfRole = (root, criteria, builder) -> builder.and(
+                root.get("id").in(accountIds),
+                builder.equal(root.get("role").get("name"), role.name())
+        );
+        return users.findAll(idsOfRole).stream().map(this::toView).toList();
     }
 
     private static Specification<UserJpaEntity> matching(Query query) {
