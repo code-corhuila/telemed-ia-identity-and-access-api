@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
                 "security.account-provisioning.clients=professional-management",
+                "security.notification-recipients.clients=notifications",
                 "management.server.port=0"
         }
 )
@@ -73,7 +74,7 @@ class InternalAccountsFlowE2ETest {
         registry.add("security.jwt.private-key", () -> pem("PRIVATE KEY", RSA_KEY_PAIR.getPrivate().getEncoded()));
         registry.add("security.jwt.public-key", () -> pem("PUBLIC KEY", RSA_KEY_PAIR.getPublic().getEncoded()));
         registry.add("security.service-clients",
-                () -> "professional-management:" + hash + ",document-generation:" + hash);
+                () -> "professional-management:" + hash + ",document-generation:" + hash + ",notifications:" + hash);
     }
 
     @LocalServerPort
@@ -173,6 +174,47 @@ class InternalAccountsFlowE2ETest {
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void shouldAnswerTheEmailOfAnActivePatientToNotificationsOnly() throws Exception {
+
+        String patientId = objectMapper.readTree(postJson(
+                "http://localhost:" + port + "/api/v1/auth/register",
+                Map.of("fullName", "E2E Recipient", "email", "e2e.recipient@telemed.test",
+                        "identityDocument", "E2E-DOC-PAT-10", "password", PASSWORD),
+                new HttpHeaders()
+        ).getBody()).get("userId").asText();
+
+        String professionalId = objectMapper.readTree(provision(
+                serviceToken("professional-management"),
+                "e2e-register-professional-3",
+                Map.of("fullName", "E2E Doctor Three", "email", "e2e.doctor3@telemed.test",
+                        "identityDocument", "E2E-DOC-PRO-3", "password", PASSWORD, "role", "PROFESSIONAL")
+        ).getBody()).get("id").asText();
+
+        String notifications = serviceToken("notifications");
+
+        ResponseEntity<String> recipient = recipient(notifications, patientId);
+        assertThat(recipient.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode body = objectMapper.readTree(recipient.getBody());
+        assertThat(body.get("id").asText()).isEqualTo(patientId);
+        assertThat(body.get("email").asText()).isEqualTo("e2e.recipient@telemed.test");
+
+        assertThat(recipient(notifications, professionalId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(recipient(serviceToken("professional-management"), patientId).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private ResponseEntity<String> recipient(String token, String accountId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return http.exchange(
+                "http://localhost:" + port + "/internal/notification-recipients/" + accountId,
+                HttpMethod.GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
     }
 
     private String serviceToken(String clientId) {
