@@ -135,6 +135,26 @@ class InternalAccountsFlowE2ETest {
 
         assertThat(session.get("userId").asText()).isEqualTo(accountId);
         assertThat(session.get("role").asText()).isEqualTo("PROFESSIONAL");
+
+        // A patient's id is never answered: only professional accounts are visible here.
+        String patientId = objectMapper.readTree(postJson(
+                "http://localhost:" + port + "/api/v1/auth/register",
+                Map.of("fullName", "E2E Patient", "email", "e2e.lookup.patient@telemed.test",
+                        "identityDocument", "E2E-DOC-PAT-9", "password", PASSWORD),
+                new HttpHeaders()
+        ).getBody()).get("userId").asText();
+
+        HttpHeaders service = new HttpHeaders();
+        service.setBearerAuth(token);
+        JsonNode lookup = objectMapper.readTree(http.exchange(
+                "http://localhost:" + port + "/internal/accounts?ids=" + accountId + "," + patientId,
+                HttpMethod.GET,
+                new HttpEntity<>(null, service),
+                String.class
+        ).getBody());
+
+        assertThat(lookup.get("data")).hasSize(1);
+        assertThat(lookup.get("data").get(0).get("fullName").asText()).isEqualTo("E2E Doctor");
     }
 
     @Test
