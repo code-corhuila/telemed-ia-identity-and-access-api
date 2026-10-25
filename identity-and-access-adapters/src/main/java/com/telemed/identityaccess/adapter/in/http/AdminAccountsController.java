@@ -3,9 +3,15 @@ package com.telemed.identityaccess.adapter.in.http;
 import com.telemed.identityaccess.application.exception.AccountNotFoundException;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase.AccountView;
+import com.telemed.identityaccess.application.port.in.ChangeAccountStatusUseCase;
 import com.telemed.identityaccess.domain.model.Role;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,9 +31,19 @@ import java.util.UUID;
 public class AdminAccountsController {
 
     private final BrowseAccountsUseCase browseAccounts;
+    private final ChangeAccountStatusUseCase changeAccountStatus;
 
-    public AdminAccountsController(BrowseAccountsUseCase browseAccounts) {
+    public AdminAccountsController(
+            BrowseAccountsUseCase browseAccounts,
+            ChangeAccountStatusUseCase changeAccountStatus
+    ) {
         this.browseAccounts = browseAccounts;
+        this.changeAccountStatus = changeAccountStatus;
+    }
+
+    public record AccountStatusRequest(
+            @NotNull(message = "active is required.") Boolean active
+    ) {
     }
 
     public record AccountResponse(
@@ -97,15 +113,32 @@ public class AdminAccountsController {
 
     @GetMapping("/{id}")
     public AccountResponse view(@PathVariable String id) {
-        UUID accountId;
+        return AccountResponse.from(browseAccounts.view(accountId(id)));
+    }
+
+    /** Blocks (false) or restores (true) the access of an account; repeating it changes nothing. */
+    @PatchMapping("/{id}/status")
+    public AccountResponse changeStatus(
+            @PathVariable String id,
+            @Valid @RequestBody AccountStatusRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        AuthenticatedPrincipal admin = AuthenticatedRequestContext.require(httpRequest);
+
+        return AccountResponse.from(changeAccountStatus.change(new ChangeAccountStatusUseCase.Command(
+                admin.userId(),
+                accountId(id),
+                request.active()
+        )));
+    }
+
+    private static UUID accountId(String id) {
         try {
-            accountId = UUID.fromString(id);
+            return UUID.fromString(id);
         } catch (IllegalArgumentException exception) {
             // A malformed id names no account.
             throw new AccountNotFoundException();
         }
-
-        return AccountResponse.from(browseAccounts.view(accountId));
     }
 
     private static Integer parseInt(
