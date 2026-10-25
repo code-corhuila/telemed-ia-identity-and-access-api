@@ -20,6 +20,9 @@ public interface UserRepositoryPort {
 
     User save(User user);
 
+    /** Stamps the database time as the account's last sign-in. */
+    void recordLastAccess(UUID userId);
+
     void updatePasswordHash(
             UUID userId,
             String passwordHash

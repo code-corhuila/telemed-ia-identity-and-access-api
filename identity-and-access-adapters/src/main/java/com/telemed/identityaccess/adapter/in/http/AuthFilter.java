@@ -2,6 +2,7 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.exception.AccessTokenVerificationException;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
+import com.telemed.identityaccess.domain.model.Role;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,8 +31,15 @@ public class AuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !AuthRoutes.SESSION_PATH.equals(pathWithinApplication(request))
+        String path = pathWithinApplication(request);
+
+        return !(AuthRoutes.SESSION_PATH.equals(path) || isAdminPath(path))
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    private static boolean isAdminPath(String path) {
+        return path.equals(AuthRoutes.ADMIN_ACCOUNTS_PATH)
+                || path.startsWith(AuthRoutes.ADMIN_ACCOUNTS_PATH + "/");
     }
 
     private String pathWithinApplication(HttpServletRequest request) {
@@ -86,6 +94,19 @@ public class AuthFilter extends OncePerRequestFilter {
         try {
             AccessTokenVerifierPort.VerifiedAccessToken verified =
                     verifier.verify(token);
+
+            // HU-05 AC5: administration is for the ADMIN role only.
+            if (isAdminPath(pathWithinApplication(request))
+                    && verified.role() != Role.ADMIN) {
+                errors.write(
+                        request,
+                        response,
+                        HttpServletResponse.SC_FORBIDDEN,
+                        "FORBIDDEN",
+                        "Administrator role is required."
+                );
+                return;
+            }
 
             AuthenticatedRequestContext.set(
                     request,

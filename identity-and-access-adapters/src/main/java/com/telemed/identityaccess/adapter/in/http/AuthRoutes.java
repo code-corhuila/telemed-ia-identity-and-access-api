@@ -20,6 +20,9 @@ public final class AuthRoutes {
     public static final String PASSWORD_RESET =
             "/password-reset";
 
+    public static final String ADMIN_ACCOUNTS =
+            "/admin/accounts";
+
     public static final String SESSION_PATH =
             BASE + SESSION;
 
@@ -34,6 +37,9 @@ public final class AuthRoutes {
 
     public static final String PASSWORD_RESET_PATH =
             BASE + PASSWORD_RESET;
+
+    public static final String ADMIN_ACCOUNTS_PATH =
+            BASE + ADMIN_ACCOUNTS;
 
     private AuthRoutes() {
     }
