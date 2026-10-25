@@ -202,6 +202,23 @@ Other services validate access tokens using the corresponding public key.
 
 The current migration from the previous HS256 implementation to RS256 is performed through a dedicated User Story Pull Request.
 
+### Professional accounts (internal)
+
+Professionals never register themselves: professional management creates their account with `POST /internal/accounts`, inside the `platform` network only (the gateway does not route `/internal`).
+
+- **Caller:** a service token (`role: SERVICE`) of a client listed in `ACCOUNT_PROVISIONING_CLIENTS` (default `professional-management`). No token or an invalid one gets `401 UNAUTHORIZED`; a user token or another service gets `403 FORBIDDEN`. Both are checked before the body is read.
+- **`Idempotency-Key` header** (8 to 128 characters), stored with the account in `identity_idempotency_key` in the same transaction.
+- **Body:** `{"fullName", "email", "identityDocument", "password", "role": "PROFESSIONAL"}`, with the same rules as a patient registration. Only `PROFESSIONAL` is accepted.
+
+| Result | Status |
+|---|---|
+| Account created | `201 {"id": "<uuid>"}` |
+| Same key and same body again | `200` with the same `id`; nothing new is created |
+| Same key with a different body | `422 IDEMPOTENCY_KEY_REUSED` |
+| Email or identity document already registered | `409 REGISTRATION_CONFLICT` |
+| Invalid field or `Idempotency-Key` | `400 VALIDATION_ERROR` with `details` |
+| Password outside the policy | `400 INVALID_REGISTRATION` |
+
 ## Error Handling and Correlation
 
 The public error contract uses the following structure:

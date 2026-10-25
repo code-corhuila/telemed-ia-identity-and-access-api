@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.adapter.in.http;
 
+import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +58,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(response);
+    }
+
+    @ExceptionHandler(AccountProvisioningException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountProvisioningException(
+            AccountProvisioningException exception,
+            HttpServletRequest request
+    ) {
+
+        if (exception.reason()
+                == AccountProvisioningException.Reason.INVALID_IDEMPOTENCY_KEY) {
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiErrorResponse.of(
+                            "VALIDATION_ERROR",
+                            "Request validation failed.",
+                            Map.of("Idempotency-Key", exception.getMessage()),
+                            getTraceId(request)
+                    ));
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiErrorResponse.of(
+                        "IDEMPOTENCY_KEY_REUSED",
+                        exception.getMessage(),
+                        Map.of(),
+                        getTraceId(request)
+                ));
     }
 
     @ExceptionHandler(AuthenticationException.class)

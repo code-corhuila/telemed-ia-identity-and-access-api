@@ -59,6 +59,10 @@ security:
   password-recovery:
     reset-url: ${PASSWORD_RESET_URL:http://localhost:4200/auth/reset-password}
 
+  # Service clients allowed to create professional accounts at POST /internal/accounts.
+  account-provisioning:
+    clients: ${ACCOUNT_PROVISIONING_CLIENTS:professional-management}
+
   # Norma 5.7: services (document generation, the worker...) ask POST /internal/service-token.
   # "client-id:bcrypt-hash,client-id:bcrypt-hash"; empty means no service may get a token.
   service-clients: ${SERVICE_CLIENTS:}
