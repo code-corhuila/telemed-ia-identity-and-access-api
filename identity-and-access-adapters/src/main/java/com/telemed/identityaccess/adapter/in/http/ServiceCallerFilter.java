@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Guards /internal/accounts before the body is read: 401 without a valid token signed by
+ * Guards /internal/accounts (create and look up) before the body is read: 401 without a valid token signed by
  * identity, 403 unless it is a service token of a client in security.account-provisioning.clients.
  */
 @Component
@@ -80,7 +80,7 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
                     response,
                     HttpServletResponse.SC_FORBIDDEN,
                     "FORBIDDEN",
-                    "This caller may not create accounts."
+                    "This caller may not use this endpoint."
             );
             return;
         }
