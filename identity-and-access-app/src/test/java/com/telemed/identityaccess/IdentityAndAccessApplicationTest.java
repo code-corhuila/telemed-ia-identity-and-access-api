@@ -2,6 +2,7 @@
 package com.telemed.identityaccess;
 
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.AccountDirectoryPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.IdempotencyKeyRepositoryPort;
 import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
@@ -43,6 +44,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private UserRepositoryPort userRepository;
+
+    @MockBean
+    private AccountDirectoryPort accountDirectory;
 
     @MockBean
     private PasswordHasherPort passwordHasher;
