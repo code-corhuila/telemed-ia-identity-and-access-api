@@ -34,7 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -200,7 +200,7 @@ class AdminAccountsControllerTest {
         when(changeAccountStatus.change(new ChangeAccountStatusUseCase.Command(ADMIN_ID, ACCOUNT_ID, false)))
                 .thenReturn(account());
 
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
                         .header("Authorization", "Bearer admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false}"))
@@ -210,7 +210,7 @@ class AdminAccountsControllerTest {
 
     @Test
     void needsTheNewStatus() throws Exception {
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
                         .header("Authorization", "Bearer admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -226,7 +226,7 @@ class AdminAccountsControllerTest {
         when(changeAccountStatus.change(any())).thenThrow(new AccountStatusConflictException(
                 SELF_DEACTIVATION, "Administrators cannot deactivate their own account."));
 
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ADMIN_ID + "/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/" + ADMIN_ID + "/status")
                         .header("Authorization", "Bearer admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false}"))
@@ -239,7 +239,7 @@ class AdminAccountsControllerTest {
     void forbidsAnAdminWhoseAccountIsNoLongerActive() throws Exception {
         when(changeAccountStatus.change(any())).thenThrow(new AdministratorRequiredException());
 
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
                         .header("Authorization", "Bearer admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false}"))
@@ -249,7 +249,7 @@ class AdminAccountsControllerTest {
 
     @Test
     void forbidsAPatientToChangeAStatus() throws Exception {
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
                         .header("Authorization", "Bearer patient-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false}"))
@@ -260,7 +260,7 @@ class AdminAccountsControllerTest {
 
     @Test
     void answersNotFoundForAMalformedIdOnStatus() throws Exception {
-        mockMvc.perform(patch("/api/v1/auth/admin/accounts/not-a-uuid/status")
+        mockMvc.perform(put("/api/v1/auth/admin/accounts/not-a-uuid/status")
                         .header("Authorization", "Bearer admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":true}"))
