@@ -2,10 +2,13 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.exception.AccessTokenVerificationException;
 import com.telemed.identityaccess.application.exception.AccountNotFoundException;
+import com.telemed.identityaccess.application.exception.AccountStatusConflictException;
+import com.telemed.identityaccess.application.exception.AdministratorRequiredException;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase.AccountPage;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase.AccountView;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase.Query;
+import com.telemed.identityaccess.application.port.in.ChangeAccountStatusUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort.VerifiedAccessToken;
 import com.telemed.identityaccess.domain.model.Role;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static com.telemed.identityaccess.application.exception.AccessTokenVerificationException.Reason.EXPIRED;
+import static com.telemed.identityaccess.application.exception.AccountStatusConflictException.Reason.SELF_DEACTIVATION;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +61,9 @@ class AdminAccountsControllerTest {
 
     @MockBean
     private BrowseAccountsUseCase browseAccounts;
+
+    @MockBean
+    private ChangeAccountStatusUseCase changeAccountStatus;
 
     @MockBean
     private AccessTokenVerifierPort accessTokens;
@@ -184,6 +193,78 @@ class AdminAccountsControllerTest {
 
         verify(browseAccounts, never()).browse(any());
         verify(browseAccounts, never()).view(any());
+    }
+
+    @Test
+    void changesTheStatusAsTheSignedInAdmin() throws Exception {
+        when(changeAccountStatus.change(new ChangeAccountStatusUseCase.Command(ADMIN_ID, ACCOUNT_ID, false)))
+                .thenReturn(account());
+
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ACCOUNT_ID.toString()));
+    }
+
+    @Test
+    void needsTheNewStatus() throws Exception {
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("active"));
+
+        verify(changeAccountStatus, never()).change(any());
+    }
+
+    @Test
+    void answersConflictWhenTheChangeIsNotAllowed() throws Exception {
+        when(changeAccountStatus.change(any())).thenThrow(new AccountStatusConflictException(
+                SELF_DEACTIVATION, "Administrators cannot deactivate their own account."));
+
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ADMIN_ID + "/status")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("ACCOUNT_STATUS_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Administrators cannot deactivate their own account."));
+    }
+
+    @Test
+    void forbidsAnAdminWhoseAccountIsNoLongerActive() throws Exception {
+        when(changeAccountStatus.change(any())).thenThrow(new AdministratorRequiredException());
+
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+    }
+
+    @Test
+    void forbidsAPatientToChangeAStatus() throws Exception {
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/" + ACCOUNT_ID + "/status")
+                        .header("Authorization", "Bearer patient-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isForbidden());
+
+        verify(changeAccountStatus, never()).change(any());
+    }
+
+    @Test
+    void answersNotFoundForAMalformedIdOnStatus() throws Exception {
+        mockMvc.perform(patch("/api/v1/auth/admin/accounts/not-a-uuid/status")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":true}"))
+                .andExpect(status().isNotFound());
     }
 
     private static AccountView account() {
