@@ -17,6 +17,20 @@ spring:
       data-source-properties:
         options: ${DB_STATEMENT_OPTIONS:-c statement_timeout=5000}
 
+  # HU-03: the outbox relay publishes to RabbitMQ. Confirms, returns and
+  # mandatory let an event count as published only when a queue took it.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:5s}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
 server:
   port: ${PORT:8081}
 
@@ -81,3 +95,11 @@ security:
     email: ${BOOTSTRAP_ADMIN_EMAIL:}
     identity-document: ${BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT:}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+identity:
+  # Off unless turned on, so tests and local tools never publish by accident.
+  outbox-relay:
+    enabled: ${OUTBOX_RELAY_ENABLED:false}
+    interval: ${OUTBOX_RELAY_INTERVAL:PT5S}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE:10}
+    confirm-timeout: ${OUTBOX_RELAY_CONFIRM_TIMEOUT:PT5S}
