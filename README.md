@@ -335,7 +335,11 @@ Includes:
 - Expired, used, and superseded token rejection.
 - Secure password reset.
 - Active session revocation after password change.
-- Integration with the configured notification process.
+- Delivery through the transactional outbox: the request records `PasswordRecoveryRequested` in
+  `identity_outbox_event`, and the relay publishes it to the RabbitMQ topic exchange `identity.events`
+  (routing key `password-recovery-requested`, ADR-011 envelope) for notifications. An event counts as
+  published only when the broker confirmed it and a queue took it; then its `resetUrl` is removed from the
+  table. The relay runs every `OUTBOX_RELAY_INTERVAL` when `OUTBOX_RELAY_ENABLED=true` (off by default).
 
 ## Development Workflow
 
