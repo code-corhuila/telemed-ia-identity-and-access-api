@@ -2,6 +2,8 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.exception.AccountNotFoundException;
 import com.telemed.identityaccess.application.exception.AccountProvisioningException;
+import com.telemed.identityaccess.application.exception.AccountStatusConflictException;
+import com.telemed.identityaccess.application.exception.AdministratorRequiredException;
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -73,6 +75,38 @@ public class GlobalExceptionHandler {
                         "VALIDATION_ERROR",
                         "Request validation failed.",
                         exception.fieldErrors(),
+                        getTraceId(request)
+                ));
+    }
+
+    @ExceptionHandler(AccountStatusConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountStatusConflict(
+            AccountStatusConflictException exception,
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(
+                        "ACCOUNT_STATUS_CONFLICT",
+                        exception.getMessage(),
+                        Map.of(),
+                        getTraceId(request)
+                ));
+    }
+
+    @ExceptionHandler(AdministratorRequiredException.class)
+    public ResponseEntity<ApiErrorResponse> handleAdministratorRequired(
+            AdministratorRequiredException exception,
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiErrorResponse.of(
+                        "FORBIDDEN",
+                        exception.getMessage(),
+                        Map.of(),
                         getTraceId(request)
                 ));
     }

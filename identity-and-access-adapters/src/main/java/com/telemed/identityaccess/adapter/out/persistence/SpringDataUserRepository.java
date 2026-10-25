@@ -53,4 +53,36 @@ public interface SpringDataUserRepository
     int updateLastAccessById(
             @Param("userId") UUID userId
     );
+
+    @Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
+    @Transactional
+    @Query("""
+            update UserJpaEntity user
+            set user.active = :active
+            where user.id = :userId
+            """)
+    int updateActiveById(
+            @Param("userId") UUID userId,
+            @Param("active") boolean active
+    );
+
+    // FOR UPDATE: a concurrent deactivation waits, then counts what this one committed.
+    @Query(
+            value = """
+                    SELECT count(*) FROM (
+                        SELECT u.id
+                        FROM users u
+                        JOIN roles r ON r.id = u.role_id
+                        WHERE r.name = :roleName AND u.active
+                        FOR UPDATE OF u
+                    ) locked
+                    """,
+            nativeQuery = true
+    )
+    long countActiveByRoleNameLocking(
+            @Param("roleName") String roleName
+    );
 }
