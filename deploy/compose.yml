@@ -24,6 +24,8 @@ services:
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT1H}
 
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
+      # Clients allowed to create professional accounts at /internal/accounts.
+      ACCOUNT_PROVISIONING_CLIENTS: ${ACCOUNT_PROVISIONING_CLIENTS:-professional-management}
 
       # Service clients allowed to ask for a service token (only bcrypt hashes, see .env.example).
       SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}

@@ -24,6 +24,25 @@ public record User(
         }
     }
 
+    /** Created by professional management on behalf of an ADMIN; professionals never register themselves. */
+    public static User registerProfessional(
+            String fullName,
+            String email,
+            String identityDocument,
+            String passwordHash
+    ) {
+        return new User(
+                null,
+                fullName,
+                email,
+                identityDocument,
+                passwordHash,
+                Role.PROFESSIONAL,
+                true,
+                false
+        );
+    }
+
     public static User registerPatient(
             String fullName,
             String email,
