@@ -6,6 +6,7 @@ import com.telemed.identityaccess.application.port.out.AccountDirectoryPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.IdempotencyKeyRepositoryPort;
 import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
+import com.telemed.identityaccess.application.port.out.OutboxEventsPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
@@ -59,6 +60,9 @@ class IdentityAndAccessApplicationTest {
 
     @MockBean
     private IntegrationEventOutboxPort integrationEventOutbox;
+
+    @MockBean
+    private OutboxEventsPort outboxEvents;
 
     @MockBean
     private PlatformTransactionManager transactionManager;
