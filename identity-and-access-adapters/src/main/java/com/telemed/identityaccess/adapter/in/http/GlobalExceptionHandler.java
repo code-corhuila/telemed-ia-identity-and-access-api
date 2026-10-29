@@ -9,6 +9,7 @@ import com.telemed.identityaccess.application.exception.RegistrationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -186,6 +187,29 @@ public class GlobalExceptionHandler {
                 yield ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(response);
+            }
+
+            case ACCOUNT_TEMPORARILY_LOCKED -> {
+
+                log.warn(
+                        "Authentication attempt rejected. reason={}",
+                        exception.reason()
+                );
+
+                // Whole seconds, rounded up, so the client never retries early.
+                long retryAfterSeconds = Math.max(1,
+                        (exception.retryAfter().toMillis() + 999) / 1000);
+
+                yield ResponseEntity
+                        .status(HttpStatus.TOO_MANY_REQUESTS)
+                        .header(HttpHeaders.RETRY_AFTER,
+                                String.valueOf(retryAfterSeconds))
+                        .body(ApiErrorResponse.of(
+                                "TOO_MANY_LOGIN_ATTEMPTS",
+                                "Too many failed login attempts. Try again later.",
+                                Map.of(),
+                                traceId
+                        ));
             }
         };
     }

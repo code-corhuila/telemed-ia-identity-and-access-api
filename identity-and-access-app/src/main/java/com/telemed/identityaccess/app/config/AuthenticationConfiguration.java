@@ -15,6 +15,7 @@ import com.telemed.identityaccess.application.port.in.RefreshSessionUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.AccessTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
+import com.telemed.identityaccess.application.port.out.LoginAttemptsRepositoryPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.PasswordResetTokenRepositoryPort;
@@ -132,14 +133,18 @@ public class AuthenticationConfiguration {
             PasswordHasherPort passwordHasher,
             AccessTokenProviderPort accessTokens,
             RefreshTokenProviderPort refreshTokens,
-            RefreshTokenRepositoryPort refreshTokenRepository
+            RefreshTokenRepositoryPort refreshTokenRepository,
+            LoginAttemptsRepositoryPort loginAttempts,
+            Clock authenticationClock
     ) {
         return new LoginService(
                 users,
                 passwordHasher,
                 accessTokens,
                 refreshTokens,
-                refreshTokenRepository
+                refreshTokenRepository,
+                loginAttempts,
+                authenticationClock
         );
     }
 
