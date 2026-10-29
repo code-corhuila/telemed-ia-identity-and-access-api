@@ -5,10 +5,12 @@ import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.PasswordHashUpdateException;
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import com.telemed.identityaccess.application.port.out.AccessTokenProviderPort;
+import com.telemed.identityaccess.application.port.out.LoginAttemptsRepositoryPort;
 import com.telemed.identityaccess.application.port.out.PasswordHasherPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenProviderPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
+import com.telemed.identityaccess.domain.model.LoginAttempts;
 import com.telemed.identityaccess.domain.model.RefreshToken;
 import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
@@ -18,15 +20,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.telemed.identityaccess.application.exception.AuthenticationException.Reason.ACCOUNT_TEMPORARILY_LOCKED;
 import static com.telemed.identityaccess.application.exception.AuthenticationException.Reason.INVALID_CREDENTIALS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -61,6 +68,12 @@ class LoginServiceTest {
     @Mock
     private RefreshTokenRepositoryPort refreshTokenRepository;
 
+    @Mock
+    private LoginAttemptsRepositoryPort loginAttempts;
+
+    private static final Instant NOW =
+            Instant.parse("2026-10-29T12:00:00Z");
+
     private LoginService service;
 
     @BeforeEach
@@ -73,7 +86,9 @@ class LoginServiceTest {
                 passwordHasher,
                 accessTokens,
                 refreshTokens,
-                refreshTokenRepository
+                refreshTokenRepository,
+                loginAttempts,
+                Clock.fixed(NOW, ZoneOffset.UTC)
         );
     }
 
@@ -83,6 +98,9 @@ class LoginServiceTest {
 
         when(users.findByEmail("patient@example.com"))
                 .thenReturn(Optional.of(user));
+
+        when(loginAttempts.find("patient@example.com"))
+                .thenReturn(Optional.of(LoginAttempts.none(NOW).recordFailure(NOW)));
 
         when(passwordHasher.matches(
                 "StrongPassword123!",
@@ -137,6 +155,7 @@ class LoginServiceTest {
         verify(refreshTokens).issue();
         // FR-012: the admin sees when each account last signed in.
         verify(users).recordLastAccess(USER_ID);
+        verify(loginAttempts).save("patient@example.com", LoginAttempts.none(NOW));
 
         verify(refreshTokenRepository).save(
                 RefreshToken.active(
@@ -425,6 +444,49 @@ class LoginServiceTest {
                 .save(any(RefreshToken.class));
 
         verify(users, never()).recordLastAccess(any());
+    }
+
+    @Test
+    void shouldRejectLockedAccountWithoutCheckingThePassword() {
+        LoginAttempts locked = LoginAttempts.none(NOW);
+        for (int i = 0; i < 5; i++) {
+            locked = locked.recordFailure(NOW);
+        }
+
+        when(loginAttempts.find("patient@example.com"))
+                .thenReturn(Optional.of(locked));
+
+        assertThatThrownBy(() -> service.login(
+                new LoginUseCase.Command(
+                        "patient@example.com",
+                        "StrongPassword123!"
+                )
+        ))
+                .isInstanceOfSatisfying(AuthenticationException.class, exception -> {
+                    assertThat(exception.reason()).isEqualTo(ACCOUNT_TEMPORARILY_LOCKED);
+                    assertThat(exception.retryAfter()).isEqualTo(Duration.ofMinutes(1));
+                });
+
+        verify(passwordHasher, never()).matches(anyString(), anyString());
+        verify(accessTokens, never()).issue(any(UUID.class), any(), any());
+    }
+
+    @Test
+    void shouldCountFailedAttemptForUnknownEmail() {
+        when(users.findByEmail("unknown@example.com"))
+                .thenReturn(Optional.empty());
+
+        assertInvalidCredentials(() -> service.login(
+                new LoginUseCase.Command(
+                        "unknown@example.com",
+                        "AnyPassword123!"
+                )
+        ));
+
+        verify(loginAttempts).save(
+                eq("unknown@example.com"),
+                eq(LoginAttempts.none(NOW).recordFailure(NOW))
+        );
     }
 
     private void assertInvalidCredentials(
