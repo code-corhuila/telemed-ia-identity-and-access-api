@@ -126,6 +126,11 @@ Default management port:
 9081
 ```
 
+The management port serves health and, from week 11, the Prometheus metrics
+(`/actuator/prometheus`): `identity_requests_total`, `identity_request_duration_seconds`,
+`identity_outbox_pending_events`, `identity_outbox_oldest_pending_age_seconds` and the
+`hikaricp_connections_*` pool gauges. The platform Prometheus scrapes `identity-api:9081`.
+
 Current authentication endpoints include:
 
 ```http
