@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.CannotCreateTransactionException;
 
+import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
@@ -22,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Week 11 log contract (CP2): what happened in the HU-02/HU-03 journeys, never who typed what. */
@@ -130,6 +134,38 @@ class AuthLogEventsTest {
                     assertThat(line).containsEntry("level", "ERROR")
                             .containsEntry("error_type", IllegalStateException.class.getName()));
         }
+    }
+
+    @Test
+    void answersAnUnreachableIdentityDbWithA503InsteadOfAnInternalError() throws Exception {
+        when(loginUseCase.login(any())).thenThrow(new CannotCreateTransactionException(
+                "Could not open JPA EntityManager for transaction",
+                new SQLTransientConnectionException("identity-pool - Connection is not available")));
+
+        try (CapturedLogs logs = CapturedLogs.of(GlobalExceptionHandler.class)) {
+            postJson("/api/v1/auth/login", LOGIN)
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.error").value("SERVICE_UNAVAILABLE"))
+                    .andExpect(jsonPath("$.traceId").isNotEmpty());
+
+            assertThat(logs.events("database.unavailable")).singleElement().satisfies(line ->
+                    assertThat(line).containsEntry("level", "WARN")
+                            .containsEntry("error_code", "SERVICE_UNAVAILABLE")
+                            .containsEntry("error_type", CannotCreateTransactionException.class.getName()));
+            assertThat(logs.events("request.failed")).isEmpty();
+        }
+    }
+
+    @Test
+    void answersAWrappedStoreFailureWithA503Too() throws Exception {
+        // The persistence adapters wrap Spring's exceptions; the cause still tells an outage apart.
+        doThrow(new IllegalStateException("Integration event could not be recorded.",
+                new DataAccessResourceFailureException("Unable to acquire JDBC Connection")))
+                .when(passwordRecoveryUseCase).requestRecovery(any());
+
+        postJson("/api/v1/auth/password-recovery", "{\"email\":\"patient@example.com\"}")
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("SERVICE_UNAVAILABLE"));
     }
 
     private org.springframework.test.web.servlet.ResultActions postJson(String path, String body) throws Exception {
