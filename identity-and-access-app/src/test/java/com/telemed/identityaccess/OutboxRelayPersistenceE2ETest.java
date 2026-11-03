@@ -70,6 +70,8 @@ class OutboxRelayPersistenceE2ETest {
         UUID published = insertPending(Instant.parse("2026-10-25T14:00:00Z"), null);
         jdbc.update("UPDATE identity_outbox_event SET published_at = now(), payload = payload - 'resetUrl' WHERE id = ?",
                 published);
+        jdbc.update("UPDATE identity_outbox_event SET traceparent = ? WHERE id = ?",
+                "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", older);
 
         List<OutboxEvent> claimed = claim(10);
 
@@ -78,6 +80,8 @@ class OutboxRelayPersistenceE2ETest {
         OutboxEvent first = claimed.get(0);
         assertThat(first.eventType()).isEqualTo("PasswordRecoveryRequested");
         assertThat(first.correlationId()).isEqualTo("trace-older");
+        assertThat(first.traceparent()).isEqualTo("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+        assertThat(claimed.get(1).traceparent()).isNull();
         assertThat(first.version()).isEqualTo(1);
         assertThat(first.occurredAt()).isEqualTo(Instant.parse("2026-10-25T15:00:00Z"));
         assertThat(first.payload()).contains("\"resetUrl\"", "raw-token");

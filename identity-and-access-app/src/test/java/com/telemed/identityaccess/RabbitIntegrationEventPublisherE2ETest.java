@@ -6,8 +6,10 @@ import com.telemed.identityaccess.adapter.out.messaging.RabbitIntegrationEventPu
 import com.telemed.identityaccess.application.event.OutboxEvent;
 import com.telemed.identityaccess.application.exception.EventPublicationException;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
@@ -97,6 +99,25 @@ class RabbitIntegrationEventPublisherE2ETest {
                 .isEqualTo("https://portal.e2e.test/reset-password#token=raw-token");
     }
 
+    @AfterEach
+    void clearTrace() {
+        MDC.clear();
+    }
+
+    @Test
+    void shouldSendTheTraceTheEventIsPublishedIn() {
+
+        MDC.put("trace_id", "4bf92f3577b34da6a3ce929d0e0e4736");
+        MDC.put("span_id", "00f067aa0ba902b7");
+
+        publisher(rabbit).publish(event("PasswordRecoveryRequested", "trace-123"));
+
+        Message message = rabbit.receive(QUEUE, 5_000);
+        assertThat(message).isNotNull();
+        assertThat((String) message.getMessageProperties().getHeader("traceparent"))
+                .isEqualTo("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    }
+
     @Test
     void shouldPublishAnEventRecordedOutsideARequestWithANullCorrelationId() throws Exception {
 
@@ -105,6 +126,7 @@ class RabbitIntegrationEventPublisherE2ETest {
         Message message = rabbit.receive(QUEUE, 5_000);
         assertThat(message).isNotNull();
         assertThat(OBJECT_MAPPER.readTree(message.getBody()).get("correlationId").isNull()).isTrue();
+        assertThat(message.getMessageProperties().getHeaders()).doesNotContainKey("traceparent");
     }
 
     @Test
@@ -145,6 +167,7 @@ class RabbitIntegrationEventPublisherE2ETest {
                 "{\"email\":\"patient@example.com\","
                         + "\"resetUrl\":\"https://portal.e2e.test/reset-password#token=raw-token\"}",
                 correlationId,
+                null,
                 1,
                 Instant.parse("2026-10-25T15:00:00Z")
         );
