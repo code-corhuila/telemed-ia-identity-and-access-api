@@ -172,10 +172,10 @@ public class GlobalExceptionHandler {
 
             case INVALID_CREDENTIALS -> {
 
-                log.warn(
-                        "Authentication attempt rejected. reason={}",
-                        exception.reason()
-                );
+                log.atWarn()
+                        .addKeyValue("event", "auth.login.failed")
+                        .addKeyValue("reason", exception.reason().name())
+                        .log("login rejected");
 
                 ApiErrorResponse response = ApiErrorResponse.of(
                         "INVALID_CREDENTIALS",
@@ -191,14 +191,14 @@ public class GlobalExceptionHandler {
 
             case ACCOUNT_TEMPORARILY_LOCKED -> {
 
-                log.warn(
-                        "Authentication attempt rejected. reason={}",
-                        exception.reason()
-                );
-
                 // Whole seconds, rounded up, so the client never retries early.
                 long retryAfterSeconds = Math.max(1,
                         (exception.retryAfter().toMillis() + 999) / 1000);
+
+                log.atWarn()
+                        .addKeyValue("event", "auth.login.locked")
+                        .addKeyValue("retry_after_s", retryAfterSeconds)
+                        .log("login rejected while the account is locked");
 
                 yield ResponseEntity
                         .status(HttpStatus.TOO_MANY_REQUESTS)
@@ -319,6 +319,13 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
                         )
                 );
 
+        // Field names only: the rejected values may be an e-mail or a password.
+        log.atInfo()
+                .addKeyValue("event", "request.rejected")
+                .addKeyValue("error_code", "VALIDATION_ERROR")
+                .addKeyValue("fields", String.join(",", fieldErrors.keySet()))
+                .log("request rejected");
+
         ApiErrorResponse response = ApiErrorResponse.of(
                 "VALIDATION_ERROR",
                 "Request validation failed.",
@@ -409,10 +416,11 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
             HttpServletRequest request
     ) {
 
-        log.error(
-                "Unexpected error while processing request.",
-                exception
-        );
+        log.atError()
+                .setCause(exception)
+                .addKeyValue("event", "request.failed")
+                .addKeyValue("error_type", exception.getClass().getName())
+                .log("Unexpected error while processing request.");
 
         ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_ERROR",
