@@ -7,8 +7,10 @@ import com.telemed.identityaccess.application.port.in.RelayOutboxEventsUseCase;
 import com.telemed.identityaccess.application.port.out.IntegrationEventPublisherPort;
 import com.telemed.identityaccess.application.port.out.OutboxEventsPort;
 import com.telemed.identityaccess.application.usecase.RelayOutboxEventsService;
+import io.micrometer.tracing.Tracer;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -34,14 +36,16 @@ public class OutboxRelayConfiguration {
     IntegrationEventPublisherPort integrationEventPublisher(
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
-            OutboxRelayProperties properties
+            OutboxRelayProperties properties,
+            ObjectProvider<Tracer> tracer
     ) {
         return new TracingIntegrationEventPublisher(
                 new RabbitIntegrationEventPublisher(
                         rabbitTemplate,
                         objectMapper,
                         properties.confirmTimeout()
-                )
+                ),
+                tracer.getIfAvailable()
         );
     }
 
