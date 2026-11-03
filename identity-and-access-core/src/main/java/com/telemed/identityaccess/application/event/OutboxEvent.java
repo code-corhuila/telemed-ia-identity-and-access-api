@@ -6,6 +6,9 @@ import java.util.UUID;
 /**
  * An integration event as the outbox stored it, waiting to be published.
  *
+ * <p>{@code traceparent} is the W3C trace context of the request that recorded it, or null
+ * when no request did; the relay publishes the event in that trace.
+ *
  * <p>{@code payload} is the event's JSON and may carry a {@code resetUrl}, so
  * {@link #toString()} leaves it out.
  */
@@ -15,6 +18,7 @@ public record OutboxEvent(
         UUID aggregateId,
         String payload,
         String correlationId,
+        String traceparent,
         int version,
         Instant occurredAt
 ) {
@@ -46,6 +50,7 @@ public record OutboxEvent(
                 + ", eventType=" + eventType
                 + ", aggregateId=" + aggregateId
                 + ", correlationId=" + correlationId
+                + ", traceparent=" + traceparent
                 + ", version=" + version
                 + ", occurredAt=" + occurredAt + "]";
     }

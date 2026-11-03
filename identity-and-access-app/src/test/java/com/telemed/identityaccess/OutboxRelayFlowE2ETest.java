@@ -83,7 +83,7 @@ class OutboxRelayFlowE2ETest {
     private ObjectMapper objectMapper;
 
     @Test
-    void shouldPublishAPendingEventAndDropItsResetUrl() throws Exception {
+    void shouldPublishAPendingEventInTheTraceOfItsRequestAndDropItsResetUrl() throws Exception {
 
         // Plays notifications: binding fails unless identity declared its exchange.
         Queue queue = new Queue(QUEUE, false);
@@ -95,8 +95,10 @@ class OutboxRelayFlowE2ETest {
 
         UUID eventId = UUID.randomUUID();
         jdbcTemplate.update("""
-                        INSERT INTO identity_outbox_event (id, event_type, aggregate_id, payload, correlation_id)
-                        VALUES (?, 'PasswordRecoveryRequested', ?, CAST(? AS jsonb), 'e2e-relay-trace')
+                        INSERT INTO identity_outbox_event
+                            (id, event_type, aggregate_id, payload, correlation_id, traceparent)
+                        VALUES (?, 'PasswordRecoveryRequested', ?, CAST(? AS jsonb), 'e2e-relay-trace',
+                                '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01')
                         """,
                 eventId,
                 UUID.randomUUID(),
@@ -107,6 +109,10 @@ class OutboxRelayFlowE2ETest {
 
         assertThat(message).isNotNull();
         assertThat(message.getMessageProperties().getMessageId()).isEqualTo(eventId.toString());
+        // Same trace as the request that recorded it; the relay's own span is the parent.
+        assertThat((String) message.getMessageProperties().getHeader("traceparent"))
+                .matches("00-4bf92f3577b34da6a3ce929d0e0e4736-[0-9a-f]{16}-01")
+                .isNotEqualTo("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
 
         JsonNode envelope = objectMapper.readTree(message.getBody());
         assertThat(envelope.get("correlationId").asText()).isEqualTo("e2e-relay-trace");

@@ -2,6 +2,7 @@ package com.telemed.identityaccess.adapter.in.http.observability;
 
 import com.telemed.identityaccess.adapter.in.http.CorrelationContext;
 import com.telemed.identityaccess.adapter.observability.CurrentTrace;
+import com.telemed.identityaccess.adapter.observability.TraceContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

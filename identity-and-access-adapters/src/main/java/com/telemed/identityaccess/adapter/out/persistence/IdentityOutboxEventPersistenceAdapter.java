@@ -3,6 +3,7 @@ package com.telemed.identityaccess.adapter.out.persistence;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telemed.identityaccess.adapter.in.http.CorrelationContext;
+import com.telemed.identityaccess.adapter.observability.CurrentTrace;
 import com.telemed.identityaccess.application.event.IntegrationEvent;
 import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
 import org.slf4j.MDC;
@@ -39,7 +40,8 @@ public class IdentityOutboxEventPersistenceAdapter
                             event.eventType(),
                             event.aggregateId(),
                             payload,
-                            MDC.get(CorrelationContext.MDC_KEY)
+                            MDC.get(CorrelationContext.MDC_KEY),
+                            CurrentTrace.traceparent()
                     )
             );
         } catch (JsonProcessingException | DataAccessException exception) {
