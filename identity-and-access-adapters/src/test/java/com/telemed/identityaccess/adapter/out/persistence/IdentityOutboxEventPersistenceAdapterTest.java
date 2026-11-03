@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.telemed.identityaccess.adapter.CapturedLogs;
-import com.telemed.identityaccess.adapter.in.http.CorrelationContext;
+import com.telemed.identityaccess.adapter.observability.CurrentTrace;
 import com.telemed.identityaccess.application.event.PasswordRecoveryRequested;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -50,13 +50,13 @@ class IdentityOutboxEventPersistenceAdapterTest {
 
     @AfterEach
     void clearCorrelation() {
-        MDC.remove(CorrelationContext.MDC_KEY);
+        MDC.remove(CurrentTrace.CORRELATION_ID);
     }
 
     @Test
     void shouldRecordPendingEventWithContractPayloadAndCorrelation()
             throws Exception {
-        MDC.put(CorrelationContext.MDC_KEY, "trace-123");
+        MDC.put(CurrentTrace.CORRELATION_ID, "trace-123");
 
         adapter().record(event());
 
