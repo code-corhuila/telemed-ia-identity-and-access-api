@@ -4,6 +4,7 @@ import com.telemed.identityaccess.app.observability.IdentityRequestMetricsFilter
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
+import io.micrometer.observation.ObservationPredicate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -15,13 +16,24 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @Configuration(proxyBeanMethods = false)
 public class ObservabilityConfiguration {
 
-    // After the trace context and before authentication, so rejected requests (401, 403) are counted too.
+    // Inside the request observation (+1), after the trace context (+2) and before authentication,
+    // so rejected requests (401, 403) are counted too.
     @Bean
     FilterRegistrationBean<IdentityRequestMetricsFilter> identityRequestMetrics(MeterRegistry registry) {
         FilterRegistrationBean<IdentityRequestMetricsFilter> registration =
                 new FilterRegistrationBean<>(new IdentityRequestMetricsFilter(registry));
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 3);
         return registration;
+    }
+
+    /**
+     * Week 11 traces (CP3): the outbox relay runs every few seconds, mostly with nothing to publish.
+     * Each run would be a trace of its own in Jaeger; only its publications are traced, under the
+     * request that recorded each event (TracingIntegrationEventPublisher).
+     */
+    @Bean
+    ObservationPredicate noScheduledTaskObservations() {
+        return (name, context) -> !"tasks.scheduled.execution".equals(name);
     }
 
     /**
