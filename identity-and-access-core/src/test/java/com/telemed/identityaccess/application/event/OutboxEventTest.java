@@ -20,7 +20,7 @@ class OutboxEventTest {
     void shouldKeepThePayloadOutOfLogs() {
 
         OutboxEvent event = new OutboxEvent(EVENT_ID, "PasswordRecoveryRequested", USER_ID,
-                "{\"resetUrl\":\"https://portal.test/reset-password#token=secret\"}", "trace-123", 1, OCCURRED_AT);
+                "{\"resetUrl\":\"https://portal.test/reset-password#token=secret\"}", "trace-123", null, 1, OCCURRED_AT);
 
         assertThat(event.toString())
                 .contains(EVENT_ID.toString(), "PasswordRecoveryRequested")
@@ -31,28 +31,41 @@ class OutboxEventTest {
     void shouldAllowAnEventRecordedOutsideARequest() {
 
         OutboxEvent event = new OutboxEvent(EVENT_ID, "PasswordRecoveryRequested", USER_ID,
-                "{}", null, 1, OCCURRED_AT);
+                "{}", null, null, 1, OCCURRED_AT);
 
         assertThat(event.correlationId()).isNull();
+        assertThat(event.traceparent()).isNull();
+    }
+
+    @Test
+    void shouldCarryTheTraceOfTheRequestThatRecordedIt() {
+
+        String traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+
+        OutboxEvent event = new OutboxEvent(EVENT_ID, "PasswordRecoveryRequested", USER_ID,
+                "{}", "trace-123", traceparent, 1, OCCURRED_AT);
+
+        assertThat(event.traceparent()).isEqualTo(traceparent);
+        assertThat(event.toString()).contains(traceparent);
     }
 
     @Test
     void shouldRequireWhatTheEnvelopeCarries() {
 
         assertThatThrownBy(() -> new OutboxEvent(null, "PasswordRecoveryRequested", USER_ID,
-                "{}", null, 1, OCCURRED_AT))
+                "{}", null, null, 1, OCCURRED_AT))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> new OutboxEvent(EVENT_ID, " ", USER_ID,
-                "{}", null, 1, OCCURRED_AT))
+                "{}", null, null, 1, OCCURRED_AT))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> new OutboxEvent(EVENT_ID, "PasswordRecoveryRequested", USER_ID,
-                null, null, 1, OCCURRED_AT))
+                null, null, null, 1, OCCURRED_AT))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> new OutboxEvent(EVENT_ID, "PasswordRecoveryRequested", USER_ID,
-                "{}", null, 0, OCCURRED_AT))
+                "{}", null, null, 0, OCCURRED_AT))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

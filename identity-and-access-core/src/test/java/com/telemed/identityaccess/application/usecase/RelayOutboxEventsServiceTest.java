@@ -92,6 +92,7 @@ class RelayOutboxEventsServiceTest {
                 UUID.randomUUID(),
                 "{\"resetUrl\":\"https://portal.test/reset-password#token=secret\"}",
                 "trace-123",
+                null,
                 1,
                 Instant.parse("2026-10-25T15:00:00Z")
         );
