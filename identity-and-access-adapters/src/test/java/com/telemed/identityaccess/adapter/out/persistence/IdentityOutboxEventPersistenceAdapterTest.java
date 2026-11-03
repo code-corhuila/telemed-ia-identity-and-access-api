@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.telemed.identityaccess.adapter.CapturedLogs;
 import com.telemed.identityaccess.adapter.in.http.CorrelationContext;
 import com.telemed.identityaccess.application.event.PasswordRecoveryRequested;
 import org.junit.jupiter.api.AfterEach;
@@ -108,6 +109,23 @@ class IdentityOutboxEventPersistenceAdapterTest {
         verify(repository).saveAndFlush(captor.capture());
 
         assertThat(captor.getValue().getCorrelationId()).isNull();
+    }
+
+    @Test
+    void shouldLogTheRecordedEventWithoutItsPayload() {
+        try (CapturedLogs logs = CapturedLogs.of(IdentityOutboxEventPersistenceAdapter.class)) {
+            adapter().record(event());
+
+            ArgumentCaptor<IdentityOutboxEventJpaEntity> captor =
+                    ArgumentCaptor.forClass(IdentityOutboxEventJpaEntity.class);
+            verify(repository).saveAndFlush(captor.capture());
+
+            assertThat(logs.events("outbox.event.recorded")).singleElement().satisfies(line ->
+                    assertThat(line).containsEntry("level", "INFO")
+                            .containsEntry("event_type", "PasswordRecoveryRequested")
+                            .containsEntry("event_id", captor.getValue().getId().toString()));
+            assertThat(logs.everything()).doesNotContain("patient@example.com", "token=abc");
+        }
     }
 
     @Test
