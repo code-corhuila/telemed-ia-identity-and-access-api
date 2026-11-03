@@ -2,6 +2,7 @@ package com.telemed.identityaccess.app.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telemed.identityaccess.adapter.out.messaging.RabbitIntegrationEventPublisher;
+import com.telemed.identityaccess.adapter.out.messaging.TracingIntegrationEventPublisher;
 import com.telemed.identityaccess.application.port.in.RelayOutboxEventsUseCase;
 import com.telemed.identityaccess.application.port.out.IntegrationEventPublisherPort;
 import com.telemed.identityaccess.application.port.out.OutboxEventsPort;
@@ -35,10 +36,12 @@ public class OutboxRelayConfiguration {
             ObjectMapper objectMapper,
             OutboxRelayProperties properties
     ) {
-        return new RabbitIntegrationEventPublisher(
-                rabbitTemplate,
-                objectMapper,
-                properties.confirmTimeout()
+        return new TracingIntegrationEventPublisher(
+                new RabbitIntegrationEventPublisher(
+                        rabbitTemplate,
+                        objectMapper,
+                        properties.confirmTimeout()
+                )
         );
     }
 
