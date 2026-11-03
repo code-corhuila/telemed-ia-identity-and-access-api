@@ -37,7 +37,9 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "security.jwt.issuer=telemed-ia-identity-and-access",
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
-                "management.server.port=0"
+                "management.server.port=0",
+                // Tracing is on here too: keep the spans off the platform collector, absent in tests.
+                "management.otlp.tracing.export.enabled=false"
         }
 )
 class MetricsEndpointE2ETest {
