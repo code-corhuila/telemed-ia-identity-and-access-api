@@ -9,10 +9,13 @@ import com.telemed.identityaccess.application.exception.RegistrationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -24,6 +27,8 @@ import com.telemed.identityaccess.application.exception.RefreshSessionException;
 import com.telemed.identityaccess.application.exception.LogoutException;
 import com.telemed.identityaccess.application.exception.PasswordResetException;
 import com.telemed.identityaccess.application.exception.ServiceAuthenticationException;
+import java.sql.SQLTimeoutException;
+import java.sql.SQLTransientConnectionException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -416,6 +421,10 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
             HttpServletRequest request
     ) {
 
+        if (isStoreUnavailable(exception)) {
+            return storeUnavailable(exception, request);
+        }
+
         log.atError()
                 .setCause(exception)
                 .addKeyValue("event", "request.failed")
@@ -432,6 +441,43 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    // identity-db did not answer within its bounded waits: the contract's 503, not a bug. No stack
+    // trace and no SQL, so an outage of the database does not read as an application failure.
+    private ResponseEntity<ApiErrorResponse> storeUnavailable(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+
+        log.atWarn()
+                .addKeyValue("event", "database.unavailable")
+                .addKeyValue("error_code", "SERVICE_UNAVAILABLE")
+                .addKeyValue("error_type", exception.getClass().getName())
+                .log("identity-db did not answer in time");
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(
+                        "SERVICE_UNAVAILABLE",
+                        "The service is temporarily unavailable. Try again later.",
+                        Map.of(),
+                        getTraceId(request)
+                ));
+    }
+
+    // The persistence adapters wrap Spring's exceptions, so the whole cause chain is checked.
+    private static boolean isStoreUnavailable(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof DataAccessResourceFailureException
+                    || cause instanceof QueryTimeoutException
+                    || cause instanceof CannotCreateTransactionException
+                    || cause instanceof SQLTransientConnectionException
+                    || cause instanceof SQLTimeoutException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String getTraceId(HttpServletRequest request) {
