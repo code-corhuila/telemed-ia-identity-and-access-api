@@ -131,6 +131,12 @@ The management port serves health and, from week 11, the Prometheus metrics
 `identity_outbox_pending_events`, `identity_outbox_oldest_pending_age_seconds` and the
 `hikaricp_connections_*` pool gauges. The platform Prometheus scrapes `identity-api:9081`.
 
+Traces: every request span, and each outbox publication as a child of the request that recorded
+the event, goes over OTLP to the platform collector (`OTLP_TRACING_ENDPOINT`, default
+`http://otel-collector:4318/v1/traces`), which forwards it to Jaeger. The log lines, the
+`traceparent` response header and the RabbitMQ message carry the same ids. Idle relay runs are
+not traced.
+
 Current authentication endpoints include:
 
 ```http
@@ -284,7 +290,8 @@ A valid incoming correlation ID is reused. If the header is missing or invalid, 
 The same value is:
 
 - Returned in the response header.
-- Stored in MDC as `traceId`.
+- Stored in MDC as `traceId` and `correlation_id` (log lines and the outbox use `correlation_id`:
+  the tracer also writes a `traceId` key, with the W3C trace id).
 - Included in the error response.
 - Used for structured request tracing.
 
