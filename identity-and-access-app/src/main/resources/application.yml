@@ -54,7 +54,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # Week 11: the platform Prometheus scrapes identity-api:9081 on the platform network.
+        include: health,info,prometheus
 
   endpoint:
     health:
