@@ -147,6 +147,9 @@ class OutboxRelayFlowE2ETest {
             assertThat(span.getParentSpanId()).isEqualTo("00f067aa0ba902b7");
             assertThat(span.getKind()).isEqualTo(SpanKind.PRODUCER);
         });
+        // The relay polls every 0.2 s here (5 s in deploy): an idle run must not add a trace of its own.
+        assertThat(spans.getFinishedSpanItems()).allSatisfy(span ->
+                assertThat(span.getTraceId()).as(span.getName()).isEqualTo("4bf92f3577b34da6a3ce929d0e0e4736"));
     }
 
     private Map<String, Object> awaitPublished(UUID eventId) throws InterruptedException {

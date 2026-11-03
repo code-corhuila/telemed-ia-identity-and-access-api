@@ -20,6 +20,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -28,6 +29,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -81,6 +83,8 @@ class SpanExportTest {
     private InMemorySpanExporter spans;
     @Autowired
     private ObjectProvider<SdkTracerProvider> tracerProvider;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @LocalServerPort
     private int port;
@@ -115,16 +119,43 @@ class SpanExportTest {
                 .isNotEmpty();
     }
 
+    @Test
+    void theOutboxEventKeepsTheCorrelationIdAndCarriesTheExportedRequestSpan() throws InterruptedException {
+        String email = "span.recovery@example.com";
+        post("/api/v1/auth/register", "{\"fullName\":\"Span Patient\",\"email\":\"" + email
+                + "\",\"identityDocument\":\"SPAN-100\",\"password\":\"StrongPassword123!\"}", null, null);
+
+        ResponseEntity<String> response = post("/api/v1/auth/password-recovery",
+                "{\"email\":\"" + email + "\"}", "00-" + TRACE_ID + "-" + CALLER_SPAN + "-01", "corr-span-0001");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        Map<String, Object> event = jdbc.queryForMap("SELECT e.correlation_id, e.traceparent"
+                + " FROM identity_outbox_event e JOIN users u ON u.id = e.aggregate_id"
+                + " WHERE u.email = ?", email);
+        // The tracer also writes an MDC key named traceId; the caller's correlation id must survive it.
+        assertThat(event.get("correlation_id")).isEqualTo("corr-span-0001");
+        String recordedSpan = ((String) event.get("traceparent")).split("-")[2];
+        assertThat(ExportedSpans.await(spans, tracerProvider, span -> span.getSpanId().equals(recordedSpan)))
+                .singleElement()
+                .satisfies(span -> assertThat(span.getTraceId()).isEqualTo(TRACE_ID));
+    }
+
     // Wrong credentials: answered 401 after a read of identity-db, inside the request span.
     private ResponseEntity<String> login(String traceparent) {
+        return post("/api/v1/auth/login",
+                "{\"email\":\"nobody@example.com\",\"password\":\"WrongPassword123!\"}", traceparent, null);
+    }
+
+    private ResponseEntity<String> post(String path, String json, String traceparent, String correlationId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         if (traceparent != null) {
             headers.set("traceparent", traceparent);
         }
-        return http.postForEntity("http://localhost:" + port + "/api/v1/auth/login",
-                new HttpEntity<>("{\"email\":\"nobody@example.com\",\"password\":\"WrongPassword123!\"}", headers),
-                String.class);
+        if (correlationId != null) {
+            headers.set("X-Correlation-Id", correlationId);
+        }
+        return http.postForEntity("http://localhost:" + port + path, new HttpEntity<>(json, headers), String.class);
     }
 
     private static String pem(String type, byte[] encoded) {
