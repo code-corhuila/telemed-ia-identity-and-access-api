@@ -36,6 +36,9 @@ public class IdentityOutboxEventJpaEntity {
     @Column(name = "correlation_id", length = 128)
     private String correlationId;
 
+    @Column(length = 55)
+    private String traceparent;
+
     @Column(name = "event_version", nullable = false)
     private short eventVersion;
 
@@ -63,13 +66,15 @@ public class IdentityOutboxEventJpaEntity {
             String eventType,
             UUID aggregateId,
             String payload,
-            String correlationId
+            String correlationId,
+            String traceparent
     ) {
         this.id = id;
         this.eventType = eventType;
         this.aggregateId = aggregateId;
         this.payload = payload;
         this.correlationId = correlationId;
+        this.traceparent = traceparent;
         this.eventVersion = CURRENT_EVENT_VERSION;
         this.attempts = 0;
     }
@@ -78,14 +83,16 @@ public class IdentityOutboxEventJpaEntity {
             String eventType,
             UUID aggregateId,
             String payload,
-            String correlationId
+            String correlationId,
+            String traceparent
     ) {
         return new IdentityOutboxEventJpaEntity(
                 UUID.randomUUID(),
                 eventType,
                 aggregateId,
                 payload,
-                correlationId
+                correlationId,
+                traceparent
         );
     }
 
@@ -107,6 +114,10 @@ public class IdentityOutboxEventJpaEntity {
 
     public String getCorrelationId() {
         return correlationId;
+    }
+
+    public String getTraceparent() {
+        return traceparent;
     }
 
     public short getEventVersion() {

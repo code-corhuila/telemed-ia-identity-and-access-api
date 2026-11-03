@@ -19,7 +19,7 @@ public class IdentityOutboxRelayPersistenceAdapter implements OutboxEventsPort {
     // SKIP LOCKED lets two relay instances share the outbox without publishing an event twice.
     private static final String CLAIM_PENDING = """
             SELECT id, event_type, aggregate_id, payload::text AS payload,
-                   correlation_id, event_version, occurred_at
+                   correlation_id, traceparent, event_version, occurred_at
             FROM identity_outbox_event
             WHERE published_at IS NULL
             ORDER BY occurred_at, id
@@ -58,6 +58,7 @@ public class IdentityOutboxRelayPersistenceAdapter implements OutboxEventsPort {
                         row.getObject("aggregate_id", UUID.class),
                         row.getString("payload"),
                         row.getString("correlation_id"),
+                        row.getString("traceparent"),
                         row.getShort("event_version"),
                         row.getObject("occurred_at", OffsetDateTime.class).toInstant()
                 ),
