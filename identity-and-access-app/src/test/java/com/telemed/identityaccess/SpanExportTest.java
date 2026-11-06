@@ -30,6 +30,7 @@ import java.security.KeyPairGenerator;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -149,6 +150,7 @@ class SpanExportTest {
     private ResponseEntity<String> post(String path, String json, String traceparent, String correlationId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Idempotency-Key", UUID.randomUUID().toString()); // POST /register requires one
         if (traceparent != null) {
             headers.set("traceparent", traceparent);
         }
