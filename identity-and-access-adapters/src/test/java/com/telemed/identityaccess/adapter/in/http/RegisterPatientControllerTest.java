@@ -1,9 +1,11 @@
 package com.telemed.identityaccess.adapter.in.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.port.in.RegisterPatientUseCase;
 import com.telemed.identityaccess.domain.model.Role;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -33,6 +35,8 @@ class RegisterPatientControllerTest {
             "33333333-3333-4333-8333-333333333333"
     );
 
+    private static final String KEY = "register-patient-0001";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -50,7 +54,8 @@ class RegisterPatientControllerTest {
                 .thenReturn(
                         new RegisterPatientUseCase.Result(
                                 USER_ID,
-                                Role.PATIENT
+                                Role.PATIENT,
+                                false
                         )
                 );
 
@@ -64,6 +69,7 @@ class RegisterPatientControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/auth/register")
+                                .header("Idempotency-Key", KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -99,6 +105,7 @@ class RegisterPatientControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/auth/register")
+                                .header("Idempotency-Key", KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -124,5 +131,73 @@ class RegisterPatientControllerTest {
 
         verify(registerPatientUseCase, never())
                 .register(any());
+    }
+
+    @Test
+    void shouldPassTheIdempotencyKeyToTheUseCase() throws Exception {
+
+        when(registerPatientUseCase.register(any()))
+                .thenReturn(new RegisterPatientUseCase.Result(USER_ID, Role.PATIENT, false));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .header("Idempotency-Key", KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validBody()))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<RegisterPatientUseCase.Command> command =
+                ArgumentCaptor.forClass(RegisterPatientUseCase.Command.class);
+        verify(registerPatientUseCase).register(command.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(KEY, command.getValue().idempotencyKey());
+    }
+
+    @Test
+    void shouldAnswerOkWithTheSameAccountWhenTheRegistrationIsReplayed() throws Exception {
+
+        when(registerPatientUseCase.register(any()))
+                .thenReturn(new RegisterPatientUseCase.Result(USER_ID, Role.PATIENT, true));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .header("Idempotency-Key", KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.role").value("PATIENT"));
+    }
+
+    @Test
+    void shouldRejectARegistrationWithoutIdempotencyKey() throws Exception {
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validBody()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details['Idempotency-Key']").exists())
+                .andExpect(jsonPath("$.traceId").exists());
+
+        verify(registerPatientUseCase, never()).register(any());
+    }
+
+    @Test
+    void shouldRejectAKeyReusedForAnotherRegistration() throws Exception {
+
+        when(registerPatientUseCase.register(any()))
+                .thenThrow(new AccountProvisioningException(
+                        AccountProvisioningException.Reason.IDEMPOTENCY_KEY_REUSED,
+                        "Idempotency-Key was already used for a different request."));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .header("Idempotency-Key", KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validBody()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error").value("IDEMPOTENCY_KEY_REUSED"));
+    }
+
+    private String validBody() throws Exception {
+        return objectMapper.writeValueAsString(new RegisterPatientRequest(
+                "Maria Patient", "patient@example.com", "123456789", "Secret123!"));
     }
 }
