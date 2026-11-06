@@ -146,6 +146,18 @@ POST /api/v1/auth/login
 
 Additional Identity and Access endpoints are introduced incrementally through the corresponding User Story Pull Requests.
 
+### Patient registration
+
+`POST /api/v1/auth/register` (HU-01) needs an `Idempotency-Key` header of 8 to 128 characters, as every creation does (07-api/guidelines.md). The portals send one through `shell/apiClient`. The key is stored with the new patient in `identity_idempotency_key`, in the same transaction:
+
+| Request | Answer |
+|---|---|
+| New key | `201 Created` with `userId` and `role` |
+| Same key and same data (a retry) | `200 OK` with the same `userId`; nothing new is created |
+| Same key with other data, or a key that created another account | `422 IDEMPOTENCY_KEY_REUSED` |
+| Email or identity document already registered | `409 REGISTRATION_CONFLICT` |
+| Missing or badly sized key, or an invalid field | `400 VALIDATION_ERROR` with `details` |
+
 ## Runtime Limits
 
 Runtime limits are explicitly configured in the application composition layer.
@@ -444,9 +456,8 @@ The remaining implementation sequence includes:
 7. PostgreSQL integration coverage.
 8. End-to-end HTTP and PostgreSQL coverage.
 9. Final security and OpenAPI contract verification.
-10. Registration idempotency after the corresponding database storage is introduced in the `-db` repository.
 
-Registration idempotency will be completed only after the database provides durable storage for the `Idempotency-Key`, because the resource and its idempotency key must be persisted atomically.
+Registration idempotency is done: the patient and its `Idempotency-Key` are stored in `identity_idempotency_key` in one transaction (see "Patient registration").
 
 ## Repository Boundaries
 
