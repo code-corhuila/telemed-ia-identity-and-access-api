@@ -20,6 +20,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -98,6 +99,7 @@ class LoginAccountLockE2ETest {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Forwarded-For", clientIp);
+        headers.set("Idempotency-Key", UUID.randomUUID().toString()); // POST /register requires one
         return http.postForEntity(url, new HttpEntity<>(body, headers), String.class);
     }
 

@@ -1,6 +1,5 @@
 package com.telemed.identityaccess.application.usecase;
 
-import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase;
 import com.telemed.identityaccess.application.port.out.IdempotencyKeyRepositoryPort;
@@ -11,7 +10,6 @@ import com.telemed.identityaccess.domain.model.User;
 
 import java.util.UUID;
 
-import static com.telemed.identityaccess.application.exception.AccountProvisioningException.Reason.IDEMPOTENCY_KEY_REUSED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.IDENTITY_DOCUMENT_ALREADY_REGISTERED;
 
@@ -69,23 +67,16 @@ public class ProvisionProfessionalAccountService
 
     private Result replay(UUID userId, Command command) {
 
-        User account = users.findById(userId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Idempotency-Key points to a missing account."
-                ));
-
-        boolean sameRequest = account.role() == Role.PROFESSIONAL
-                && account.fullName().equals(command.fullName())
-                && account.email().equalsIgnoreCase(command.email())
-                && account.identityDocument().equals(command.identityDocument())
-                && passwordHasher.matches(command.password(), account.passwordHash());
-
-        if (!sameRequest) {
-            throw new AccountProvisioningException(
-                    IDEMPOTENCY_KEY_REUSED,
-                    "Idempotency-Key was already used for a different request."
-            );
-        }
+        AccountCreationRetry.requireSameRequest(
+                users,
+                passwordHasher,
+                userId,
+                Role.PROFESSIONAL,
+                command.fullName(),
+                command.email(),
+                command.identityDocument(),
+                command.password()
+        );
 
         return new Result(userId, true);
     }

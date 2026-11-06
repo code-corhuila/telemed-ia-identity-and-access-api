@@ -24,6 +24,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -162,6 +163,7 @@ class AdminAccountsFlowE2ETest {
     private ResponseEntity<String> postJson(String path, Object body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Idempotency-Key", UUID.randomUUID().toString()); // POST /register requires one
         return http.exchange(
                 "http://localhost:" + port + path,
                 HttpMethod.POST,
