@@ -18,12 +18,15 @@ public class RegisterPatientController {
         this.registerPatientUseCase = registerPatientUseCase;
     }
 
+    // A retry with the same key gets the same account back (200) instead of a duplicate-email 409.
     @PostMapping("/register")
     public ResponseEntity<RegisterPatientResponse> register(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody RegisterPatientRequest request
     ) {
 
         var command = new RegisterPatientUseCase.Command(
+                idempotencyKey,
                 request.fullName(),
                 request.email(),
                 request.identityDocument(),
@@ -38,7 +41,7 @@ public class RegisterPatientController {
         );
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
+                .status(result.replayed() ? HttpStatus.OK : HttpStatus.CREATED)
                 .body(response);
     }
 }

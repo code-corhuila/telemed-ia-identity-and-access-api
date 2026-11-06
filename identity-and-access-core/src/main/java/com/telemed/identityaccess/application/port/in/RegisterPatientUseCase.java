@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.application.port.in;
 
+import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.domain.model.PasswordPolicy;
 import com.telemed.identityaccess.domain.model.Role;
@@ -7,13 +8,16 @@ import com.telemed.identityaccess.domain.model.Role;
 import java.util.Locale;
 import java.util.UUID;
 
+import static com.telemed.identityaccess.application.exception.AccountProvisioningException.Reason.INVALID_IDEMPOTENCY_KEY;
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.INVALID_REGISTRATION;
 
 public interface RegisterPatientUseCase {
 
     Result register(Command command);
 
+    /** idempotencyKey: the Idempotency-Key of the request (07-api/guidelines.md), 8 to 128 characters. */
     record Command(
+            String idempotencyKey,
             String fullName,
             String email,
             String identityDocument,
@@ -21,6 +25,8 @@ public interface RegisterPatientUseCase {
     ) {
 
         public Command {
+            idempotencyKey = requireIdempotencyKey(idempotencyKey);
+
             fullName = requireText(
                     fullName,
                     "Full name is required."
@@ -79,10 +85,25 @@ public interface RegisterPatientUseCase {
             return value;
         }
 
+        private static String requireIdempotencyKey(String value) {
+            if (value == null
+                    || value.isBlank()
+                    || value.length() < 8
+                    || value.length() > 128) {
+                throw new AccountProvisioningException(
+                        INVALID_IDEMPOTENCY_KEY,
+                        "Idempotency-Key must contain 8 to 128 characters."
+                );
+            }
+
+            return value;
+        }
+
         @Override
         public String toString() {
-            return "Command[fullName=%s, email=%s, identityDocument=%s, password=***]"
+            return "Command[idempotencyKey=%s, fullName=%s, email=%s, identityDocument=%s, password=***]"
                     .formatted(
+                            idempotencyKey,
                             fullName,
                             email,
                             identityDocument
@@ -90,9 +111,11 @@ public interface RegisterPatientUseCase {
         }
     }
 
+    /** replayed: the key was already used for this same registration, so nothing new was created. */
     record Result(
             UUID userId,
-            Role role
+            Role role,
+            boolean replayed
     ) {
     }
 }

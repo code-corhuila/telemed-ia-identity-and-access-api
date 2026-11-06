@@ -174,7 +174,7 @@ class RegisterPatientControllerTest {
                         .content(validBody()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.details['Idempotency-Key']").exists())
+                .andExpect(jsonPath("$.details[0].field").value("Idempotency-Key"))
                 .andExpect(jsonPath("$.traceId").exists());
 
         verify(registerPatientUseCase, never()).register(any());
