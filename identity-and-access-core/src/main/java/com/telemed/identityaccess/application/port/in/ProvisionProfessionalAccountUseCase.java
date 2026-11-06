@@ -1,10 +1,6 @@
 package com.telemed.identityaccess.application.port.in;
 
-import com.telemed.identityaccess.application.exception.AccountProvisioningException;
-
 import java.util.UUID;
-
-import static com.telemed.identityaccess.application.exception.AccountProvisioningException.Reason.INVALID_IDEMPOTENCY_KEY;
 
 public interface ProvisionProfessionalAccountUseCase {
 
@@ -19,10 +15,9 @@ public interface ProvisionProfessionalAccountUseCase {
     ) {
 
         public Command {
-            idempotencyKey = requireIdempotencyKey(idempotencyKey);
-
-            // Same rules and normalization as a patient registration.
+            // Same rules and normalization as a patient registration, Idempotency-Key included.
             var account = new RegisterPatientUseCase.Command(
+                    idempotencyKey,
                     fullName,
                     email,
                     identityDocument,
@@ -32,20 +27,6 @@ public interface ProvisionProfessionalAccountUseCase {
             fullName = account.fullName();
             email = account.email();
             identityDocument = account.identityDocument();
-        }
-
-        private static String requireIdempotencyKey(String value) {
-            if (value == null
-                    || value.isBlank()
-                    || value.length() < 8
-                    || value.length() > 128) {
-                throw new AccountProvisioningException(
-                        INVALID_IDEMPOTENCY_KEY,
-                        "Idempotency-Key must contain 8 to 128 characters."
-                );
-            }
-
-            return value;
         }
 
         @Override
