@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -934,6 +935,7 @@ class PasswordRecoveryFlowE2ETest {
         headers.setContentType(
                 MediaType.APPLICATION_JSON
         );
+        headers.set("Idempotency-Key", UUID.randomUUID().toString()); // POST /register requires one
         return http.exchange(
                 url,
                 HttpMethod.POST,
