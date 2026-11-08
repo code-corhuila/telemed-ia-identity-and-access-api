@@ -39,7 +39,8 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "security.jwt.issuer=telemed-ia-identity-and-access",
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
-                "security.account-provisioning.clients=professional-management",
+                "security.account-provisioning.clients=professional-management,workflow",
+                "security.account-status.clients=workflow",
                 "security.notification-recipients.clients=notifications",
                 "management.server.port=0"
         }
@@ -74,7 +75,7 @@ class InternalAccountsFlowE2ETest {
         registry.add("security.jwt.private-key", () -> pem("PRIVATE KEY", RSA_KEY_PAIR.getPrivate().getEncoded()));
         registry.add("security.jwt.public-key", () -> pem("PUBLIC KEY", RSA_KEY_PAIR.getPublic().getEncoded()));
         registry.add("security.service-clients",
-                () -> "professional-management:" + hash + ",document-generation:" + hash + ",notifications:" + hash);
+                () -> "professional-management:" + hash + ",document-generation:" + hash + ",notifications:" + hash + ",workflow:" + hash);
     }
 
     @LocalServerPort
@@ -237,6 +238,52 @@ class InternalAccountsFlowE2ETest {
         assertThat(recipient(notifications, professionalId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(recipient(serviceToken("professional-management"), patientId).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    /** The saga activates the account last, and deactivates it to compensate: that also ends its sessions. */
+    @Test
+    void shouldLetTheWorkflowActivateAndDeactivateAProfessionalAccount() throws Exception {
+
+        String workflow = serviceToken("workflow");
+        String accountId = objectMapper.readTree(provision(workflow, "e2e-saga-professional-5", Map.of(
+                "fullName", "E2E Doctor Five", "email", "e2e.doctor5@telemed.test",
+                "identityDocument", "E2E-DOC-PRO-5", "password", PASSWORD, "role", "PROFESSIONAL",
+                "active", false
+        )).getBody()).get("id").asText();
+        Map<String, String> credentials = Map.of("email", "e2e.doctor5@telemed.test", "password", PASSWORD);
+
+        assertThat(accountStatus(workflow, accountId, true).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(accountStatus(workflow, accountId, true).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        ResponseEntity<String> login = postJson("http://localhost:" + port + "/api/v1/auth/login",
+                credentials, new HttpHeaders());
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        assertThat(accountStatus(workflow, accountId, false).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(postJson("http://localhost:" + port + "/api/v1/auth/login", credentials, new HttpHeaders())
+                .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        Integer openSessions = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM refresh_tokens WHERE user_id = ? AND revoked = false",
+                Integer.class,
+                UUID.fromString(accountId)
+        );
+        assertThat(openSessions).isZero();
+
+        assertThat(accountStatus(serviceToken("professional-management"), accountId, true).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(accountStatus(workflow, UUID.randomUUID().toString(), true).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private ResponseEntity<String> accountStatus(String token, String accountId, boolean active) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return http.exchange(
+                "http://localhost:" + port + "/internal/accounts/" + accountId + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>(Map.of("active", active), headers),
+                String.class
+        );
     }
 
     private ResponseEntity<String> recipient(String token, String accountId) {
