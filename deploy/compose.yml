@@ -27,7 +27,8 @@ services:
 
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
       # Clients allowed to create professional accounts at /internal/accounts.
-      ACCOUNT_PROVISIONING_CLIENTS: ${ACCOUNT_PROVISIONING_CLIENTS:-professional-management}
+      ACCOUNT_PROVISIONING_CLIENTS: ${ACCOUNT_PROVISIONING_CLIENTS:-professional-management,workflow}
+      ACCOUNT_STATUS_CLIENTS: ${ACCOUNT_STATUS_CLIENTS:-workflow}
       # Clients allowed to read a patient's e-mail at /internal/notification-recipients.
       NOTIFICATION_RECIPIENTS_CLIENTS: ${NOTIFICATION_RECIPIENTS_CLIENTS:-notifications}
 

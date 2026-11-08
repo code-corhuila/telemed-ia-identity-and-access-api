@@ -259,7 +259,7 @@ Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`
 
 Professionals never register themselves: professional management creates their account with `POST /internal/accounts`, inside the `platform` network only (the gateway does not route `/internal`).
 
-- **Caller:** a service token (`role: SERVICE`) of a client listed in `ACCOUNT_PROVISIONING_CLIENTS` (default `professional-management`). No token or an invalid one gets `401 UNAUTHORIZED`; a user token or another service gets `403 FORBIDDEN`. Both are checked before the body is read.
+- **Caller:** a service token (`role: SERVICE`) of a client listed in `ACCOUNT_PROVISIONING_CLIENTS` (default `professional-management,workflow`). No token or an invalid one gets `401 UNAUTHORIZED`; a user token or another service gets `403 FORBIDDEN`. Both are checked before the body is read.
 - **`Idempotency-Key` header** (8 to 128 characters), stored with the account in `identity_idempotency_key` in the same transaction.
 - **Body:** `{"fullName", "email", "identityDocument", "password", "role": "PROFESSIONAL"}`, with the same rules as a patient registration. Only `PROFESSIONAL` is accepted.
 
@@ -273,6 +273,12 @@ Professionals never register themselves: professional management creates their a
 | Password outside the policy | `400 INVALID_REGISTRATION` |
 
 `GET /internal/accounts?ids=<uuid>,<uuid>` (1 to 100 ids, same callers) answers `{"data": [{"id", "fullName", "email"}]}` so professional management can show the names of the professionals it lists. Only `PROFESSIONAL` accounts are answered: unknown ids and accounts of any other role are left out, so this endpoint never reveals patients or administrators. Ids that are not UUIDs get `400 VALIDATION_ERROR`.
+
+`PUT /internal/accounts/{id}/status` with `{"active": true}` activates a professional account and `{"active": false}` deactivates it, answering `204` with no body. The onboarding saga of the workflow service creates the account inactive, activates it as its last step, and deactivates it to compensate.
+
+- **Caller:** a service token of a client listed in `ACCOUNT_STATUS_CLIENTS` (default `workflow`); `401` and `403` as above, checked before the body is read.
+- Idempotent: repeating the current value changes nothing, so a retried step or compensation is safe. Deactivating revokes all the account's refresh tokens in the same transaction.
+- Any account that is not a professional (unknown, patient or administrator) gets `404 NOT_FOUND`; a missing `active` or an id that is not a UUID gets `400 VALIDATION_ERROR`.
 
 ### Notification recipients (internal)
 
