@@ -82,12 +82,15 @@ public class InternalAccountsController {
 
             @NotBlank(message = "Role is required.")
             @Pattern(regexp = "PROFESSIONAL", message = "Only PROFESSIONAL accounts can be provisioned.")
-            String role
+            String role,
+
+            /** Optional, true when left out; the onboarding saga sends false and activates it at the end. */
+            Boolean active
     ) {
         @Override
         public String toString() {
             return "ProvisionAccountRequest[fullName=[REDACTED], email=[REDACTED], "
-                    + "identityDocument=[REDACTED], password=[REDACTED], role=" + role + "]";
+                    + "identityDocument=[REDACTED], password=[REDACTED], role=" + role + ", active=" + active + "]";
         }
     }
 
@@ -104,7 +107,8 @@ public class InternalAccountsController {
                 request.fullName(),
                 request.email(),
                 request.identityDocument(),
-                request.password()
+                request.password(),
+                !Boolean.FALSE.equals(request.active())
         ));
 
         return ResponseEntity
