@@ -158,6 +158,39 @@ class InternalAccountsFlowE2ETest {
         assertThat(lookup.get("data").get(0).get("fullName").asText()).isEqualTo("E2E Doctor");
     }
 
+    /** The onboarding saga creates the account inactive, so nobody signs in before the saga succeeds. */
+    @Test
+    void shouldCreateAnInactiveProfessionalAccountThatCannotLogIn() throws Exception {
+
+        ResponseEntity<String> created = provision(
+                serviceToken("professional-management"),
+                "e2e-register-professional-4",
+                Map.of(
+                        "fullName", "E2E Doctor Four",
+                        "email", "e2e.doctor4@telemed.test",
+                        "identityDocument", "E2E-DOC-PRO-4",
+                        "password", PASSWORD,
+                        "role", "PROFESSIONAL",
+                        "active", false
+                )
+        );
+
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Boolean active = jdbcTemplate.queryForObject(
+                "SELECT active FROM users WHERE id = ?",
+                Boolean.class,
+                UUID.fromString(objectMapper.readTree(created.getBody()).get("id").asText())
+        );
+        assertThat(active).isFalse();
+
+        ResponseEntity<String> login = postJson(
+                "http://localhost:" + port + "/api/v1/auth/login",
+                Map.of("email", "e2e.doctor4@telemed.test", "password", PASSWORD),
+                new HttpHeaders()
+        );
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     @Test
     void shouldForbidAServiceThatIsNotAllowedToCreateAccounts() {
 
