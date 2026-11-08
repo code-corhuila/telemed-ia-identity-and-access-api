@@ -76,6 +76,47 @@ class ProvisionProfessionalAccountServiceTest {
     }
 
     @Test
+    void shouldCreateAnInactiveProfessionalWhenTheCallerAsksForIt() {
+
+        when(passwordHasher.hash("Doctor-Secret-1"))
+                .thenReturn("$2a$10$hashed-password");
+        when(users.save(any(User.class)))
+                .thenAnswer(invocation -> withId(invocation.getArgument(0)));
+
+        useCase.provision(inactiveCommand());
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(users).save(saved.capture());
+        assertFalse(saved.getValue().active());
+        assertEquals(Role.PROFESSIONAL, saved.getValue().role());
+    }
+
+    @Test
+    void shouldCreateAnActiveProfessionalUnlessTheCallerAsksOtherwise() {
+
+        assertTrue(command().active());
+        assertFalse(inactiveCommand().active());
+    }
+
+    /** The workflow may have activated the account between two tries of the same step. */
+    @Test
+    void shouldReplayARetryWhateverTheAccountStatusIsNow() {
+
+        when(idempotencyKeys.findUserId(KEY))
+                .thenReturn(Optional.of(ACCOUNT_ID));
+        when(users.findById(ACCOUNT_ID))
+                .thenReturn(Optional.of(storedProfessional()));
+        when(passwordHasher.matches("Doctor-Secret-1", "$2a$10$hashed-password"))
+                .thenReturn(true);
+
+        var result = useCase.provision(inactiveCommand());
+
+        assertEquals(ACCOUNT_ID, result.userId());
+        assertTrue(result.replayed());
+        verify(users, never()).save(any());
+    }
+
+    @Test
     void shouldAnswerTheSameAccountWhenTheSameRequestIsRetried() {
 
         when(idempotencyKeys.findUserId(KEY))
@@ -205,6 +246,17 @@ class ProvisionProfessionalAccountServiceTest {
                 "doctor@telemed.test",
                 "DOC-0001",
                 "Doctor-Secret-1"
+        );
+    }
+
+    private static Command inactiveCommand() {
+        return new Command(
+                KEY,
+                "Doctor Name",
+                "doctor@telemed.test",
+                "DOC-0001",
+                "Doctor-Secret-1",
+                false
         );
     }
 
