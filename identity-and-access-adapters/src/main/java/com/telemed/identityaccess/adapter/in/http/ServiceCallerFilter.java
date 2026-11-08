@@ -20,7 +20,8 @@ import java.util.stream.Collectors;
 /**
  * Guards the internal endpoints before the body is read: 401 without a valid token signed by identity, 403
  * unless it is a service token of a client allowed for that path. /internal/accounts (create and look up)
- * takes security.account-provisioning.clients; /internal/notification-recipients takes
+ * takes security.account-provisioning.clients; anything below it (/internal/accounts/{id}/status) takes
+ * security.account-status.clients; /internal/notification-recipients takes
  * security.notification-recipients.clients.
  */
 @Component
@@ -30,17 +31,20 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
     private final ServiceTokenVerifierPort serviceTokens;
     private final ApiErrorWriter errors;
     private final Set<String> provisioningClients;
+    private final Set<String> accountStatusClients;
     private final Set<String> notificationRecipientClients;
 
     public ServiceCallerFilter(
             ServiceTokenVerifierPort serviceTokens,
             ApiErrorWriter errors,
             @Value("${security.account-provisioning.clients:}") String provisioningClients,
+            @Value("${security.account-status.clients:}") String accountStatusClients,
             @Value("${security.notification-recipients.clients:}") String notificationRecipientClients
     ) {
         this.serviceTokens = serviceTokens;
         this.errors = errors;
         this.provisioningClients = clients(provisioningClients);
+        this.accountStatusClients = clients(accountStatusClients);
         this.notificationRecipientClients = clients(notificationRecipientClients);
     }
 
@@ -56,6 +60,10 @@ public class ServiceCallerFilter extends OncePerRequestFilter {
 
         if (InternalAccountsController.PATH.equals(path)) {
             return provisioningClients;
+        }
+        // Fails closed: any other path below /internal/accounts is guarded too.
+        if (path.startsWith(InternalAccountsController.PATH + "/")) {
+            return accountStatusClients;
         }
         if (path.startsWith(InternalNotificationRecipientsController.PATH + "/")) {
             return notificationRecipientClients;

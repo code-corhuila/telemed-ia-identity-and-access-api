@@ -100,7 +100,11 @@ security:
 
   # Service clients allowed to create professional accounts at POST /internal/accounts.
   account-provisioning:
-    clients: ${ACCOUNT_PROVISIONING_CLIENTS:professional-management}
+    clients: ${ACCOUNT_PROVISIONING_CLIENTS:professional-management,workflow}
+
+  # Service clients allowed to activate or deactivate a professional account at PUT /internal/accounts/{id}/status.
+  account-status:
+    clients: ${ACCOUNT_STATUS_CLIENTS:workflow}
 
   # Service clients allowed to read a patient's e-mail at GET /internal/notification-recipients/{id}.
   notification-recipients:
