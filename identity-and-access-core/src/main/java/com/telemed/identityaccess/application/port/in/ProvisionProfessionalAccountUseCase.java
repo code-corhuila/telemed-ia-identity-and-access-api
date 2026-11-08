@@ -6,13 +6,29 @@ public interface ProvisionProfessionalAccountUseCase {
 
     Result provision(Command command);
 
+    /**
+     * active = false creates the account blocked (the onboarding saga activates it at the end).
+     * A retry with the same Idempotency-Key does not compare it: the account may be active by then.
+     */
     record Command(
             String idempotencyKey,
             String fullName,
             String email,
             String identityDocument,
-            String password
+            String password,
+            boolean active
     ) {
+
+        /** An active account, as professional management asks for it. */
+        public Command(
+                String idempotencyKey,
+                String fullName,
+                String email,
+                String identityDocument,
+                String password
+        ) {
+            this(idempotencyKey, fullName, email, identityDocument, password, true);
+        }
 
         public Command {
             // Same rules and normalization as a patient registration, Idempotency-Key included.
@@ -31,12 +47,13 @@ public interface ProvisionProfessionalAccountUseCase {
 
         @Override
         public String toString() {
-            return "Command[idempotencyKey=%s, fullName=%s, email=%s, identityDocument=%s, password=***]"
+            return "Command[idempotencyKey=%s, fullName=%s, email=%s, identityDocument=%s, password=***, active=%s]"
                     .formatted(
                             idempotencyKey,
                             fullName,
                             email,
-                            identityDocument
+                            identityDocument,
+                            active
                     );
         }
     }

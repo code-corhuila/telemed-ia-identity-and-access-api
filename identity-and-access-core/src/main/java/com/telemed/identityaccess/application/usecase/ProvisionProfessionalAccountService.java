@@ -57,7 +57,8 @@ public class ProvisionProfessionalAccountService
                 command.fullName(),
                 command.email(),
                 command.identityDocument(),
-                passwordHasher.hash(command.password())
+                passwordHasher.hash(command.password()),
+                command.active()
         ));
 
         idempotencyKeys.save(command.idempotencyKey(), saved.id());
