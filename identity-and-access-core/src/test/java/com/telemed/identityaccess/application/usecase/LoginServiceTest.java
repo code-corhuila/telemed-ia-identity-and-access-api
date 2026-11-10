@@ -135,6 +135,8 @@ class LoginServiceTest {
 
         verify(accessTokens).issue(USER_ID, Role.PATIENT, "Patient Test");
         verify(refreshTokens).issue();
+        // FR-012: the admin sees when each account last signed in.
+        verify(users).recordLastAccess(USER_ID);
 
         verify(refreshTokenRepository).save(
                 RefreshToken.active(
@@ -421,6 +423,8 @@ class LoginServiceTest {
 
         verify(refreshTokenRepository, never())
                 .save(any(RefreshToken.class));
+
+        verify(users, never()).recordLastAccess(any());
     }
 
     private void assertInvalidCredentials(

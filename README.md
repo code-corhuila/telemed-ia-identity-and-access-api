@@ -216,6 +216,15 @@ Other services validate access tokens using the corresponding public key.
 
 The current migration from the previous HS256 implementation to RS256 is performed through a dedicated User Story Pull Request.
 
+### Account administration (FR-012)
+
+Administrators view the registered accounts under `/api/v1/auth/admin/accounts`, which the gateway already routes. The service answers `401 UNAUTHORIZED` without a valid access token and `403 FORBIDDEN` for any role but `ADMIN`.
+
+- `GET /api/v1/auth/admin/accounts`: `q` (part of the name, email or identity document), `role` (`PATIENT`, `PROFESSIONAL` or `ADMIN`), `active` (`true` or `false`), `page` (from 1) and `limit` (1 to 100, default 20). Newest registrations come first. The response is `{"data": [...], "meta": {"page", "limit", "total", "totalPages"}}`; an invalid parameter gets `400 VALIDATION_ERROR` with `details`.
+- `GET /api/v1/auth/admin/accounts/{id}`: one account, or `404 NOT_FOUND`.
+
+Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`, `registrationDate` and `lastAccess` (RFC 3339 UTC; `null` before the first sign-in). Every successful login stamps `lastAccess`. The password hash is never returned.
+
 ### Professional accounts (internal)
 
 Professionals never register themselves: professional management creates their account with `POST /internal/accounts`, inside the `platform` network only (the gateway does not route `/internal`).
