@@ -142,7 +142,7 @@ class InternalAccountsFlowE2ETest {
                 "http://localhost:" + port + "/api/v1/auth/register",
                 Map.of("fullName", "E2E Patient", "email", "e2e.lookup.patient@telemed.test",
                         "identityDocument", "E2E-DOC-PAT-9", "password", PASSWORD),
-                new HttpHeaders()
+                withAnyIdempotencyKey()
         ).getBody()).get("userId").asText();
 
         HttpHeaders service = new HttpHeaders();
@@ -183,7 +183,7 @@ class InternalAccountsFlowE2ETest {
                 "http://localhost:" + port + "/api/v1/auth/register",
                 Map.of("fullName", "E2E Recipient", "email", "e2e.recipient@telemed.test",
                         "identityDocument", "E2E-DOC-PAT-10", "password", PASSWORD),
-                new HttpHeaders()
+                withAnyIdempotencyKey()
         ).getBody()).get("userId").asText();
 
         String professionalId = objectMapper.readTree(provision(
@@ -282,5 +282,11 @@ class InternalAccountsFlowE2ETest {
         return "-----BEGIN " + label + "-----\n"
                 + body
                 + "\n-----END " + label + "-----";
+    }
+
+    private static HttpHeaders withAnyIdempotencyKey() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Idempotency-Key", UUID.randomUUID().toString()); // POST /register requires one
+        return headers;
     }
 }

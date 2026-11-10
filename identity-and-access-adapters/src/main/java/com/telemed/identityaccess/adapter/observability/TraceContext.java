@@ -16,11 +16,16 @@ public record TraceContext(String traceId, String spanId) {
 
     /** Continues the caller's trace, or starts a new one when the header is missing or invalid. */
     public static TraceContext from(String traceparent) {
+        TraceContext caller = parse(traceparent);
+        return new TraceContext(caller == null ? randomHex(16) : caller.traceId(), randomHex(8));
+    }
+
+    /** The trace and span ids a valid traceparent carries; null when it is missing or invalid. */
+    public static TraceContext parse(String traceparent) {
         Matcher matcher = traceparent == null ? null : TRACEPARENT.matcher(traceparent);
-        String traceId = matcher != null && matcher.matches() && !INVALID_TRACE_ID.equals(matcher.group(1))
-                ? matcher.group(1)
-                : randomHex(16);
-        return new TraceContext(traceId, randomHex(8));
+        return matcher != null && matcher.matches() && !INVALID_TRACE_ID.equals(matcher.group(1))
+                ? new TraceContext(matcher.group(1), matcher.group(2))
+                : null;
     }
 
     public String toHeader() {

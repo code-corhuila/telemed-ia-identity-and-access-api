@@ -2,6 +2,10 @@ package com.telemed.identityaccess;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.data.SpanData;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.Binding;
@@ -10,8 +14,11 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,12 +28,15 @@ import org.testcontainers.containers.RabbitMQContainer;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** HU-03: an event recorded in the outbox reaches a queue bound to identity.events, without operator action. */
+@AutoConfigureObservability
+@Import(ExportedSpans.class)
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
@@ -36,7 +46,8 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "security.jwt.access-token-ttl=PT1H",
                 "security.refresh-token.ttl=P7D",
                 "identity.outbox-relay.enabled=true",
-                "identity.outbox-relay.interval=PT0.2S"
+                "identity.outbox-relay.interval=PT0.2S",
+                "management.otlp.tracing.export.enabled=false"
         }
 )
 class OutboxRelayFlowE2ETest {
@@ -82,6 +93,12 @@ class OutboxRelayFlowE2ETest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private InMemorySpanExporter spans;
+
+    @Autowired
+    private ObjectProvider<SdkTracerProvider> tracerProvider;
+
     @Test
     void shouldPublishAPendingEventInTheTraceOfItsRequestAndDropItsResetUrl() throws Exception {
 
@@ -120,6 +137,19 @@ class OutboxRelayFlowE2ETest {
 
         Map<String, Object> row = awaitPublished(eventId);
         assertThat(row.get("has_reset_url")).isEqualTo(false);
+
+        // Week 11 traces (CP3): Jaeger shows the publication under the request that recorded the event.
+        String publishSpan = ((String) message.getMessageProperties().getHeader("traceparent")).split("-")[2];
+        List<SpanData> published = ExportedSpans.await(spans, tracerProvider,
+                span -> span.getSpanId().equals(publishSpan));
+        assertThat(published).singleElement().satisfies(span -> {
+            assertThat(span.getTraceId()).isEqualTo("4bf92f3577b34da6a3ce929d0e0e4736");
+            assertThat(span.getParentSpanId()).isEqualTo("00f067aa0ba902b7");
+            assertThat(span.getKind()).isEqualTo(SpanKind.PRODUCER);
+        });
+        // The relay polls every 0.2 s here (5 s in deploy): an idle run must not add a trace of its own.
+        assertThat(spans.getFinishedSpanItems()).allSatisfy(span ->
+                assertThat(span.getTraceId()).as(span.getName()).isEqualTo("4bf92f3577b34da6a3ce929d0e0e4736"));
     }
 
     private Map<String, Object> awaitPublished(UUID eventId) throws InterruptedException {

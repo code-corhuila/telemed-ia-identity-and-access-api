@@ -2,7 +2,6 @@ package com.telemed.identityaccess.adapter.out.persistence;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.telemed.identityaccess.adapter.in.http.CorrelationContext;
 import com.telemed.identityaccess.adapter.observability.CurrentTrace;
 import com.telemed.identityaccess.application.event.IntegrationEvent;
 import com.telemed.identityaccess.application.port.out.IntegrationEventOutboxPort;
@@ -44,7 +43,8 @@ public class IdentityOutboxEventPersistenceAdapter
                             event.eventType(),
                             event.aggregateId(),
                             payload,
-                            MDC.get(CorrelationContext.MDC_KEY),
+                            // Not the traceId key: the tracer writes the trace id under that name.
+                            MDC.get(CurrentTrace.CORRELATION_ID),
                             CurrentTrace.traceparent()
                     );
             events.saveAndFlush(recorded);
