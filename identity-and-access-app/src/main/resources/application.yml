@@ -64,3 +64,10 @@ security:
   service-clients: ${SERVICE_CLIENTS:}
   service-token:
     ttl: ${SERVICE_TOKEN_TTL:PT10M}
+
+  # First ADMIN, created at startup only when no ADMIN exists. All four values, or none.
+  bootstrap-admin:
+    full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:}
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    identity-document: ${BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}

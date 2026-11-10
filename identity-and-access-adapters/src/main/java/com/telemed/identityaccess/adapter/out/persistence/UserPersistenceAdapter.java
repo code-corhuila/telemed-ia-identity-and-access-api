@@ -44,6 +44,11 @@ public class UserPersistenceAdapter
     }
 
     @Override
+    public boolean existsByRole(Role role) {
+        return users.existsByRoleName(role.name());
+    }
+
+    @Override
     public Optional<User> findByEmail(
             String email
     ) {

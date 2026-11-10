@@ -42,6 +42,25 @@ public record User(
         );
     }
 
+    /** The first administrator, created from the environment; nobody can register one. */
+    public static User registerAdmin(
+            String fullName,
+            String email,
+            String identityDocument,
+            String passwordHash
+    ) {
+        return new User(
+                null,
+                fullName,
+                email,
+                identityDocument,
+                passwordHash,
+                Role.ADMIN,
+                true,
+                true
+        );
+    }
+
     private static void requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(message);

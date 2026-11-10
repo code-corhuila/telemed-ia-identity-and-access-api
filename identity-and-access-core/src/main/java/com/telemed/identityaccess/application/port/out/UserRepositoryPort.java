@@ -1,5 +1,6 @@
 package com.telemed.identityaccess.application.port.out;
 
+import com.telemed.identityaccess.domain.model.Role;
 import com.telemed.identityaccess.domain.model.User;
 
 import java.util.Optional;
@@ -10,6 +11,8 @@ public interface UserRepositoryPort {
     boolean existsByEmail(String email);
 
     boolean existsByIdentityDocument(String identityDocument);
+
+    boolean existsByRole(Role role);
 
     Optional<User> findByEmail(String email);
 
