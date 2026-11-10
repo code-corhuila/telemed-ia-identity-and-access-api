@@ -1,28 +1,39 @@
 package com.telemed.identityaccess.application.port.in;
 
-import com.telemed.identityaccess.application.exception.AccountProvisioningException;
-
 import java.util.UUID;
-
-import static com.telemed.identityaccess.application.exception.AccountProvisioningException.Reason.INVALID_IDEMPOTENCY_KEY;
 
 public interface ProvisionProfessionalAccountUseCase {
 
     Result provision(Command command);
 
+    /**
+     * active = false creates the account blocked (the onboarding saga activates it at the end).
+     * A retry with the same Idempotency-Key does not compare it: the account may be active by then.
+     */
     record Command(
             String idempotencyKey,
             String fullName,
             String email,
             String identityDocument,
-            String password
+            String password,
+            boolean active
     ) {
 
-        public Command {
-            idempotencyKey = requireIdempotencyKey(idempotencyKey);
+        /** An active account, as professional management asks for it. */
+        public Command(
+                String idempotencyKey,
+                String fullName,
+                String email,
+                String identityDocument,
+                String password
+        ) {
+            this(idempotencyKey, fullName, email, identityDocument, password, true);
+        }
 
-            // Same rules and normalization as a patient registration.
+        public Command {
+            // Same rules and normalization as a patient registration, Idempotency-Key included.
             var account = new RegisterPatientUseCase.Command(
+                    idempotencyKey,
                     fullName,
                     email,
                     identityDocument,
@@ -34,28 +45,15 @@ public interface ProvisionProfessionalAccountUseCase {
             identityDocument = account.identityDocument();
         }
 
-        private static String requireIdempotencyKey(String value) {
-            if (value == null
-                    || value.isBlank()
-                    || value.length() < 8
-                    || value.length() > 128) {
-                throw new AccountProvisioningException(
-                        INVALID_IDEMPOTENCY_KEY,
-                        "Idempotency-Key must contain 8 to 128 characters."
-                );
-            }
-
-            return value;
-        }
-
         @Override
         public String toString() {
-            return "Command[idempotencyKey=%s, fullName=%s, email=%s, identityDocument=%s, password=***]"
+            return "Command[idempotencyKey=%s, fullName=%s, email=%s, identityDocument=%s, password=***, active=%s]"
                     .formatted(
                             idempotencyKey,
                             fullName,
                             email,
-                            identityDocument
+                            identityDocument,
+                            active
                     );
         }
     }

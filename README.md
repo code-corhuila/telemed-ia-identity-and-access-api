@@ -146,6 +146,18 @@ POST /api/v1/auth/login
 
 Additional Identity and Access endpoints are introduced incrementally through the corresponding User Story Pull Requests.
 
+### Patient registration
+
+`POST /api/v1/auth/register` (HU-01) needs an `Idempotency-Key` header of 8 to 128 characters, as every creation does (07-api/guidelines.md). The portals send one through `shell/apiClient`. The key is stored with the new patient in `identity_idempotency_key`, in the same transaction:
+
+| Request | Answer |
+|---|---|
+| New key | `201 Created` with `userId` and `role` |
+| Same key and same data (a retry) | `200 OK` with the same `userId`; nothing new is created |
+| Same key with other data, or a key that created another account | `422 IDEMPOTENCY_KEY_REUSED` |
+| Email or identity document already registered | `409 REGISTRATION_CONFLICT` |
+| Missing or badly sized key, or an invalid field | `400 VALIDATION_ERROR` with `details` |
+
 ## Runtime Limits
 
 Runtime limits are explicitly configured in the application composition layer.
@@ -247,7 +259,7 @@ Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`
 
 Professionals never register themselves: professional management creates their account with `POST /internal/accounts`, inside the `platform` network only (the gateway does not route `/internal`).
 
-- **Caller:** a service token (`role: SERVICE`) of a client listed in `ACCOUNT_PROVISIONING_CLIENTS` (default `professional-management`). No token or an invalid one gets `401 UNAUTHORIZED`; a user token or another service gets `403 FORBIDDEN`. Both are checked before the body is read.
+- **Caller:** a service token (`role: SERVICE`) of a client listed in `ACCOUNT_PROVISIONING_CLIENTS` (default `professional-management,workflow`). No token or an invalid one gets `401 UNAUTHORIZED`; a user token or another service gets `403 FORBIDDEN`. Both are checked before the body is read.
 - **`Idempotency-Key` header** (8 to 128 characters), stored with the account in `identity_idempotency_key` in the same transaction.
 - **Body:** `{"fullName", "email", "identityDocument", "password", "role": "PROFESSIONAL"}`, with the same rules as a patient registration. Only `PROFESSIONAL` is accepted.
 
@@ -261,6 +273,12 @@ Professionals never register themselves: professional management creates their a
 | Password outside the policy | `400 INVALID_REGISTRATION` |
 
 `GET /internal/accounts?ids=<uuid>,<uuid>` (1 to 100 ids, same callers) answers `{"data": [{"id", "fullName", "email"}]}` so professional management can show the names of the professionals it lists. Only `PROFESSIONAL` accounts are answered: unknown ids and accounts of any other role are left out, so this endpoint never reveals patients or administrators. Ids that are not UUIDs get `400 VALIDATION_ERROR`.
+
+`PUT /internal/accounts/{id}/status` with `{"active": true}` activates a professional account and `{"active": false}` deactivates it, answering `204` with no body. The onboarding saga of the workflow service creates the account inactive, activates it as its last step, and deactivates it to compensate.
+
+- **Caller:** a service token of a client listed in `ACCOUNT_STATUS_CLIENTS` (default `workflow`); `401` and `403` as above, checked before the body is read.
+- Idempotent: repeating the current value changes nothing, so a retried step or compensation is safe. Deactivating revokes all the account's refresh tokens in the same transaction.
+- Any account that is not a professional (unknown, patient or administrator) gets `404 NOT_FOUND`; a missing `active` or an id that is not a UUID gets `400 VALIDATION_ERROR`.
 
 ### Notification recipients (internal)
 
@@ -444,9 +462,8 @@ The remaining implementation sequence includes:
 7. PostgreSQL integration coverage.
 8. End-to-end HTTP and PostgreSQL coverage.
 9. Final security and OpenAPI contract verification.
-10. Registration idempotency after the corresponding database storage is introduced in the `-db` repository.
 
-Registration idempotency will be completed only after the database provides durable storage for the `Idempotency-Key`, because the resource and its idempotency key must be persisted atomically.
+Registration idempotency is done: the patient and its `Idempotency-Key` are stored in `identity_idempotency_key` in one transaction (see "Patient registration").
 
 ## Repository Boundaries
 

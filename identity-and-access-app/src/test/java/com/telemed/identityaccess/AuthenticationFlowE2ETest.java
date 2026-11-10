@@ -492,4 +492,58 @@ class AuthenticationFlowE2ETest {
                 + body
                 + "\n-----END " + label + "-----";
     }
+
+    @Test
+    void shouldAnswerTheSameAccountWhenARegistrationIsRetriedWithItsKey() throws Exception {
+
+        String url = "http://localhost:" + port + "/api/v1/auth/register";
+        String key = "e2e-register-retry-0001";
+        Map<String, String> body = Map.of(
+                "fullName", "Retry Patient",
+                "email", "retry.patient.e2e@example.com",
+                "identityDocument", "E2E-RETRY-1",
+                "password", PASSWORD
+        );
+
+        ResponseEntity<String> first = postJsonWithKey(url, body, key);
+        ResponseEntity<String> retried = postJsonWithKey(url, body, key);
+
+        assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(retried.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(retried.getBody()).get("userId").asText())
+                .isEqualTo(objectMapper.readTree(first.getBody()).get("userId").asText());
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, "retry.patient.e2e@example.com"))
+                .isEqualTo(1);
+
+        ResponseEntity<String> otherData = postJsonWithKey(url, Map.of(
+                "fullName", "Other Patient",
+                "email", "other.retry.e2e@example.com",
+                "identityDocument", "E2E-RETRY-2",
+                "password", PASSWORD
+        ), key);
+        assertThat(otherData.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(otherData.getBody()).get("error").asText())
+                .isEqualTo("IDEMPOTENCY_KEY_REUSED");
+
+        ResponseEntity<String> withoutKey = postJsonWithKey(url, Map.of(
+                "fullName", "No Key Patient",
+                "email", "nokey.patient.e2e@example.com",
+                "identityDocument", "E2E-RETRY-3",
+                "password", PASSWORD
+        ), null);
+        assertThat(withoutKey.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, "nokey.patient.e2e@example.com"))
+                .isZero();
+    }
+
+    private ResponseEntity<String> postJsonWithKey(String url, Object body, String idempotencyKey) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (idempotencyKey != null) {
+            headers.set("Idempotency-Key", idempotencyKey);
+        }
+        return http.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
+    }
 }

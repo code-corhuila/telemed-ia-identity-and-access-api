@@ -6,11 +6,13 @@ import com.telemed.identityaccess.application.exception.RegistrationException;
 import com.telemed.identityaccess.application.port.in.LookupProfessionalAccountsUseCase;
 import com.telemed.identityaccess.application.port.in.LookupProfessionalAccountsUseCase.ProfessionalAccount;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase;
+import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase.Command;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase.Result;
 import com.telemed.identityaccess.application.port.out.ServiceTokenVerifierPort;
 import com.telemed.identityaccess.application.port.out.ServiceTokenVerifierPort.ServiceCaller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -28,6 +30,8 @@ import static com.telemed.identityaccess.application.exception.AccountProvisioni
 import static com.telemed.identityaccess.application.exception.RegistrationException.Reason.EMAIL_ALREADY_REGISTERED;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -92,6 +96,31 @@ class InternalAccountsControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(ACCOUNT_ID.toString()))
                 .andExpect(content().string(not(containsString("Doctor-Secret-1"))));
+    }
+
+    @Test
+    void createsAnActiveAccountWhenTheBodyDoesNotSayOtherwise() throws Exception {
+        when(provisionAccount.provision(any())).thenReturn(new Result(ACCOUNT_ID, false));
+
+        provision("professional-management-token", "register-0001", BODY)
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<Command> command = ArgumentCaptor.forClass(Command.class);
+        verify(provisionAccount).provision(command.capture());
+        assertTrue(command.getValue().active());
+    }
+
+    @Test
+    void createsAnInactiveAccountWhenTheCallerAsksForIt() throws Exception {
+        when(provisionAccount.provision(any())).thenReturn(new Result(ACCOUNT_ID, false));
+
+        provision("professional-management-token", "register-0001", BODY.replace("}", ",\"active\":false}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(ACCOUNT_ID.toString()));
+
+        ArgumentCaptor<Command> command = ArgumentCaptor.forClass(Command.class);
+        verify(provisionAccount).provision(command.capture());
+        assertFalse(command.getValue().active());
     }
 
     @Test

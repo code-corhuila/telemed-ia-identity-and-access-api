@@ -24,12 +24,16 @@ public record User(
         }
     }
 
-    /** Created by professional management on behalf of an ADMIN; professionals never register themselves. */
+    /**
+     * Created by professional management on behalf of an ADMIN, or by the onboarding saga, which asks
+     * for it inactive; professionals never register themselves.
+     */
     public static User registerProfessional(
             String fullName,
             String email,
             String identityDocument,
-            String passwordHash
+            String passwordHash,
+            boolean active
     ) {
         return new User(
                 null,
@@ -38,7 +42,7 @@ public record User(
                 identityDocument,
                 passwordHash,
                 Role.PROFESSIONAL,
-                true,
+                active,
                 false
         );
     }
