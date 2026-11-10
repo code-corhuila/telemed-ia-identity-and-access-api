@@ -3,6 +3,8 @@ package com.telemed.identityaccess.adapter.in.http;
 import com.telemed.identityaccess.application.exception.AccessTokenVerificationException;
 import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
+import com.telemed.identityaccess.application.port.in.LookupProfessionalAccountsUseCase;
+import com.telemed.identityaccess.application.port.in.LookupProfessionalAccountsUseCase.ProfessionalAccount;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase;
 import com.telemed.identityaccess.application.port.in.ProvisionProfessionalAccountUseCase.Result;
 import com.telemed.identityaccess.application.port.out.ServiceTokenVerifierPort;
@@ -17,6 +19,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.telemed.identityaccess.application.exception.AccessTokenVerificationException.Reason.INVALID_SIGNATURE;
@@ -28,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,6 +68,9 @@ class InternalAccountsControllerTest {
 
     @MockBean
     private ServiceTokenVerifierPort serviceTokens;
+
+    @MockBean
+    private LookupProfessionalAccountsUseCase lookupAccounts;
 
     @BeforeEach
     void callers() {
@@ -175,6 +183,45 @@ class InternalAccountsControllerTest {
         provision("professional-management-token", "register-0001", BODY)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("REGISTRATION_CONFLICT"));
+    }
+
+    @Test
+    void answersTheNamesOfTheRequestedProfessionals() throws Exception {
+        UUID other = UUID.fromString("33333333-3333-4333-8333-333333333333");
+        when(lookupAccounts.lookup(Set.of(ACCOUNT_ID, other)))
+                .thenReturn(List.of(new ProfessionalAccount(ACCOUNT_ID, "Doctor Name", "doctor@telemed.test")));
+
+        mockMvc.perform(get("/internal/accounts")
+                        .header("Authorization", "Bearer professional-management-token")
+                        .param("ids", ACCOUNT_ID + "," + other))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(ACCOUNT_ID.toString()))
+                .andExpect(jsonPath("$.data[0].fullName").value("Doctor Name"))
+                .andExpect(jsonPath("$.data[0].email").value("doctor@telemed.test"))
+                .andExpect(jsonPath("$.data[0].identityDocument").doesNotExist());
+    }
+
+    @Test
+    void rejectsIdsThatAreNotUuids() throws Exception {
+        mockMvc.perform(get("/internal/accounts")
+                        .header("Authorization", "Bearer professional-management-token")
+                        .param("ids", ACCOUNT_ID + ",not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("ids"));
+    }
+
+    @Test
+    void forbidsTheLookupToUsersAndOtherServices() throws Exception {
+        for (String token : List.of("patient-token", "document-generation-token")) {
+            mockMvc.perform(get("/internal/accounts")
+                            .header("Authorization", "Bearer " + token)
+                            .param("ids", ACCOUNT_ID.toString()))
+                    .andExpect(status().isForbidden());
+        }
+
+        verify(lookupAccounts, never()).lookup(any());
     }
 
     private ResultActions provision(String token, String idempotencyKey, String body) throws Exception {
