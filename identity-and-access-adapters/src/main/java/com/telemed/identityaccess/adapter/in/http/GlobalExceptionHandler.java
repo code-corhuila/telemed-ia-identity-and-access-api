@@ -9,10 +9,13 @@ import com.telemed.identityaccess.application.exception.RegistrationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -24,6 +27,8 @@ import com.telemed.identityaccess.application.exception.RefreshSessionException;
 import com.telemed.identityaccess.application.exception.LogoutException;
 import com.telemed.identityaccess.application.exception.PasswordResetException;
 import com.telemed.identityaccess.application.exception.ServiceAuthenticationException;
+import java.sql.SQLTimeoutException;
+import java.sql.SQLTransientConnectionException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -172,10 +177,10 @@ public class GlobalExceptionHandler {
 
             case INVALID_CREDENTIALS -> {
 
-                log.warn(
-                        "Authentication attempt rejected. reason={}",
-                        exception.reason()
-                );
+                log.atWarn()
+                        .addKeyValue("event", "auth.login.failed")
+                        .addKeyValue("reason", exception.reason().name())
+                        .log("login rejected");
 
                 ApiErrorResponse response = ApiErrorResponse.of(
                         "INVALID_CREDENTIALS",
@@ -191,14 +196,14 @@ public class GlobalExceptionHandler {
 
             case ACCOUNT_TEMPORARILY_LOCKED -> {
 
-                log.warn(
-                        "Authentication attempt rejected. reason={}",
-                        exception.reason()
-                );
-
                 // Whole seconds, rounded up, so the client never retries early.
                 long retryAfterSeconds = Math.max(1,
                         (exception.retryAfter().toMillis() + 999) / 1000);
+
+                log.atWarn()
+                        .addKeyValue("event", "auth.login.locked")
+                        .addKeyValue("retry_after_s", retryAfterSeconds)
+                        .log("login rejected while the account is locked");
 
                 yield ResponseEntity
                         .status(HttpStatus.TOO_MANY_REQUESTS)
@@ -319,6 +324,13 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
                         )
                 );
 
+        // Field names only: the rejected values may be an e-mail or a password.
+        log.atInfo()
+                .addKeyValue("event", "request.rejected")
+                .addKeyValue("error_code", "VALIDATION_ERROR")
+                .addKeyValue("fields", String.join(",", fieldErrors.keySet()))
+                .log("request rejected");
+
         ApiErrorResponse response = ApiErrorResponse.of(
                 "VALIDATION_ERROR",
                 "Request validation failed.",
@@ -409,10 +421,15 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
             HttpServletRequest request
     ) {
 
-        log.error(
-                "Unexpected error while processing request.",
-                exception
-        );
+        if (isStoreUnavailable(exception)) {
+            return storeUnavailable(exception, request);
+        }
+
+        log.atError()
+                .setCause(exception)
+                .addKeyValue("event", "request.failed")
+                .addKeyValue("error_type", exception.getClass().getName())
+                .log("Unexpected error while processing request.");
 
         ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_ERROR",
@@ -424,6 +441,43 @@ public ResponseEntity<ApiErrorResponse> handleLogoutException(
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    // identity-db did not answer within its bounded waits: the contract's 503, not a bug. No stack
+    // trace and no SQL, so an outage of the database does not read as an application failure.
+    private ResponseEntity<ApiErrorResponse> storeUnavailable(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+
+        log.atWarn()
+                .addKeyValue("event", "database.unavailable")
+                .addKeyValue("error_code", "SERVICE_UNAVAILABLE")
+                .addKeyValue("error_type", exception.getClass().getName())
+                .log("identity-db did not answer in time");
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(
+                        "SERVICE_UNAVAILABLE",
+                        "The service is temporarily unavailable. Try again later.",
+                        Map.of(),
+                        getTraceId(request)
+                ));
+    }
+
+    // The persistence adapters wrap Spring's exceptions, so the whole cause chain is checked.
+    private static boolean isStoreUnavailable(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof DataAccessResourceFailureException
+                    || cause instanceof QueryTimeoutException
+                    || cause instanceof CannotCreateTransactionException
+                    || cause instanceof SQLTransientConnectionException
+                    || cause instanceof SQLTimeoutException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String getTraceId(HttpServletRequest request) {

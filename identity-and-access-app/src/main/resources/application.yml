@@ -16,6 +16,10 @@ spring:
       validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:3000}
       data-source-properties:
         options: ${DB_STATEMENT_OPTIONS:-c statement_timeout=5000}
+        # Week 11 runbook (CP8): a stalled identity-db must not hold a request thread forever.
+        # Seconds, as the PostgreSQL driver reads them.
+        connectTimeout: ${DB_CONNECT_TIMEOUT_S:3}
+        socketTimeout: ${DB_SOCKET_TIMEOUT_S:10}
 
   # HU-03: the outbox relay publishes to RabbitMQ. Confirms, returns and
   # mandatory let an event count as published only when a queue took it.
@@ -54,7 +58,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # Week 11: the platform Prometheus scrapes identity-api:9081 on the platform network.
+        include: health,info,prometheus
 
   endpoint:
     health:
