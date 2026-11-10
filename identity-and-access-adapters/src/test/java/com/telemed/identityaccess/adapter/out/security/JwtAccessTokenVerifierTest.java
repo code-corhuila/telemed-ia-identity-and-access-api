@@ -60,7 +60,8 @@ class JwtAccessTokenVerifierTest {
 
         var issued = provider.issue(
                 userId,
-                Role.ADMIN
+                Role.ADMIN,
+                "Test User"
         );
 
         var verified = verifier.verify(
@@ -122,7 +123,8 @@ class JwtAccessTokenVerifierTest {
                 verifier.verify(
                         provider.issue(
                                 UUID.randomUUID(),
-                                Role.PATIENT
+                                Role.PATIENT,
+                                "Test User"
                         ).value()
                 )
         )
@@ -253,7 +255,8 @@ class JwtAccessTokenVerifierTest {
                 verifier.verify(
                         provider.issue(
                                 UUID.randomUUID(),
-                                Role.PATIENT
+                                Role.PATIENT,
+                                "Test User"
                         ).value()
                 )
         )

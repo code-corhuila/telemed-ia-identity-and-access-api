@@ -4,8 +4,11 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
 
+    # Only the gateway is published (Anexo G 5.6.1): the API, including
+    # /internal/service-token, is reachable only inside the platform network.
+    expose:
+      - "8081"
     ports:
-      - "${PORT:-8081}:8081"
       - "127.0.0.1:${MANAGEMENT_PORT:-9081}:9081"
 
     environment:
@@ -22,6 +25,10 @@ services:
 
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
 
+      # Service clients allowed to ask for a service token (only bcrypt hashes, see .env.example).
+      SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}
+      SERVICE_TOKEN_TTL: ${SERVICE_TOKEN_TTL:-PT10M}
+
       # Paths inside the container.
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem
@@ -29,3 +36,12 @@ services:
     volumes:
       - ${JWT_PRIVATE_KEY_HOST_FILE:?Set JWT_PRIVATE_KEY_HOST_FILE}:/run/secrets/jwt-private.pem:ro
       - ${JWT_PUBLIC_KEY_HOST_FILE:?Set JWT_PUBLIC_KEY_HOST_FILE}:/run/secrets/jwt-public.pem:ro
+
+    # Shared network: the API gateway reaches this service as identity-api:8081.
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
+    name: platform

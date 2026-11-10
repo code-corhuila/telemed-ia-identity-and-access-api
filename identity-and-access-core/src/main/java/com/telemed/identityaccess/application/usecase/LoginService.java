@@ -94,7 +94,8 @@ public class LoginService implements LoginUseCase {
         AccessTokenProviderPort.IssuedAccessToken accessToken =
                 accessTokens.issue(
                         user.id(),
-                        user.role()
+                        user.role(),
+                        user.fullName()
                 );
 
         RefreshTokenProviderPort.IssuedRefreshToken refreshToken =
