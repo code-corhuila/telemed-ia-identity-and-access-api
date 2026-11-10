@@ -94,6 +94,16 @@ public class UserPersistenceAdapter
     }
 
     @Override
+    public void updateActive(UUID userId, boolean active) {
+        users.updateActiveById(userId, active);
+    }
+
+    @Override
+    public long countActiveByRoleLocking(Role role) {
+        return users.countActiveByRoleNameLocking(role.name());
+    }
+
+    @Override
     public User save(User user) {
 
         RoleJpaEntity role =
