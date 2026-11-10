@@ -31,6 +31,12 @@ spring:
     template:
       mandatory: true
 
+# Week 11 log contract (CP2): one JSON line per event, with the request's trace context.
+logging:
+  structured:
+    format:
+      console: com.telemed.identityaccess.app.observability.ContractLogFormatter
+
 server:
   port: ${PORT:8081}
 

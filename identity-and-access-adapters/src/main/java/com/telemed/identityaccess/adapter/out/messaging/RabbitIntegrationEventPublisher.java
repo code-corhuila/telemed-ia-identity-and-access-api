@@ -3,12 +3,15 @@ package com.telemed.identityaccess.adapter.out.messaging;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.telemed.identityaccess.adapter.observability.CurrentTrace;
+import com.telemed.identityaccess.adapter.observability.TraceContext;
 import com.telemed.identityaccess.application.event.OutboxEvent;
 import com.telemed.identityaccess.application.exception.EventPublicationException;
 import com.telemed.identityaccess.application.port.out.IntegrationEventPublisherPort;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageBuilderSupport;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
@@ -85,14 +88,20 @@ public class RabbitIntegrationEventPublisher implements IntegrationEventPublishe
         try {
             envelope.set("payload", objectMapper.readTree(event.payload()));
 
-            return MessageBuilder.withBody(objectMapper.writeValueAsBytes(envelope))
+            MessageBuilderSupport<Message> message = MessageBuilder.withBody(objectMapper.writeValueAsBytes(envelope))
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
                     .setContentEncoding("UTF-8")
                     .setMessageId(event.id().toString())
                     .setCorrelationId(event.correlationId())
                     .setType(event.eventType())
-                    .setDeliveryMode(MessageDeliveryMode.PERSISTENT)
-                    .build();
+                    .setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+
+            // The consumer continues the trace this event is published in (week 11, CP3).
+            String traceparent = CurrentTrace.traceparent();
+            if (traceparent != null) {
+                message.setHeader(TraceContext.HEADER, traceparent);
+            }
+            return message.build();
 
         } catch (JsonProcessingException exception) {
             // Not chained: the parser message may quote the payload and its resetUrl.

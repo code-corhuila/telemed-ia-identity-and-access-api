@@ -776,6 +776,7 @@ class PasswordRecoveryFlowE2ETest {
                         SELECT e.event_type,
                                e.aggregate_id,
                                e.payload::text AS payload,
+                               e.traceparent,
                                e.published_at,
                                u.id AS user_id,
                                t.id AS token_id
@@ -793,6 +794,9 @@ class PasswordRecoveryFlowE2ETest {
         assertThat(row.get("aggregate_id"))
                 .isEqualTo(row.get("user_id"));
         assertThat(row.get("published_at")).isNull();
+        // The request's trace, with identity's span as the parent, travels with the event.
+        assertThat(row.get("traceparent"))
+                .isEqualTo(recoveryResponse.getHeaders().getFirst("traceparent"));
 
         JsonNode payload =
                 objectMapper.readTree(
