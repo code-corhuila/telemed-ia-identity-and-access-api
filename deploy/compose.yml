@@ -31,6 +31,8 @@ services:
       ACCOUNT_STATUS_CLIENTS: ${ACCOUNT_STATUS_CLIENTS:-workflow}
       # Clients allowed to read a patient's e-mail at /internal/notification-recipients.
       NOTIFICATION_RECIPIENTS_CLIENTS: ${NOTIFICATION_RECIPIENTS_CLIENTS:-notifications}
+      # DEC-014: clients allowed to read account names at /internal/account-names.
+      ACCOUNT_NAMES_CLIENTS: ${ACCOUNT_NAMES_CLIENTS:-document-generation}
 
       # Service clients allowed to ask for a service token (only bcrypt hashes, see .env.example).
       SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}

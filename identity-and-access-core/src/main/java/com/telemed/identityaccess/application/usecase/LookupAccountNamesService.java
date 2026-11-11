@@ -23,21 +23,30 @@ public class LookupAccountNamesService implements LookupAccountNamesUseCase {
         if (callerRole != Role.PROFESSIONAL && callerRole != Role.ADMIN) {
             throw new AccountNamesNotAllowedException();
         }
-        if (accountIds.isEmpty() || accountIds.size() > MAX_IDS) {
-            throw new IllegalArgumentException("ids must contain 1 to 50 account ids.");
-        }
+        requireOneToFifty(accountIds);
 
         List<AccountView> accounts = callerRole == Role.ADMIN
                 ? directory.findByIds(accountIds)
                 : directory.findByIdsAndRole(accountIds, Role.PATIENT);
 
-        return accounts.stream()
-                .map(account -> new AccountName(account.id(), account.fullName()))
-                .toList();
+        return names(accounts);
     }
 
     @Override
     public List<AccountName> lookupForService(Set<UUID> accountIds) {
-        throw new UnsupportedOperationException("not implemented");
+        requireOneToFifty(accountIds);
+        return names(directory.findByIds(accountIds));
+    }
+
+    private static void requireOneToFifty(Set<UUID> accountIds) {
+        if (accountIds.isEmpty() || accountIds.size() > MAX_IDS) {
+            throw new IllegalArgumentException("ids must contain 1 to 50 account ids.");
+        }
+    }
+
+    private static List<AccountName> names(List<AccountView> accounts) {
+        return accounts.stream()
+                .map(account -> new AccountName(account.id(), account.fullName()))
+                .toList();
     }
 }
