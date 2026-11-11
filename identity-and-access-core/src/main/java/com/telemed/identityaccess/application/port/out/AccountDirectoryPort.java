@@ -18,4 +18,7 @@ public interface AccountDirectoryPort {
     Optional<AccountView> findById(UUID accountId);
 
     List<AccountView> findByIdsAndRole(Collection<UUID> accountIds, Role role);
+
+    /** Accounts of any role; unknown ids are left out. */
+    List<AccountView> findByIds(Collection<UUID> accountIds);
 }

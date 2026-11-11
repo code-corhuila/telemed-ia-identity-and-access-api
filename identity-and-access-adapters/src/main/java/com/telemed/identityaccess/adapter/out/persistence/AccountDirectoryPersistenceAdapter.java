@@ -71,6 +71,11 @@ public class AccountDirectoryPersistenceAdapter
         return users.findAll(idsOfRole).stream().map(this::toView).toList();
     }
 
+    @Override
+    public List<AccountView> findByIds(Collection<UUID> accountIds) {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
     private static Specification<UserJpaEntity> matching(Query query) {
         return (root, criteria, builder) -> {
             List<Predicate> filters = new ArrayList<>();
