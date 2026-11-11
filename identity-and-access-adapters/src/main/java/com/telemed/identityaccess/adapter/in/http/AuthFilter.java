@@ -33,7 +33,9 @@ public class AuthFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = pathWithinApplication(request);
 
-        return !(AuthRoutes.SESSION_PATH.equals(path) || isAdminPath(path))
+        return !(AuthRoutes.SESSION_PATH.equals(path)
+                || AuthRoutes.ACCOUNT_NAMES_PATH.equals(path)
+                || isAdminPath(path))
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
