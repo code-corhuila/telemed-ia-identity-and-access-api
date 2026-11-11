@@ -246,6 +246,8 @@ Administrators view the registered accounts under `/api/v1/auth/admin/accounts`,
 - `GET /api/v1/auth/admin/accounts`: `q` (part of the name, email or identity document), `role` (`PATIENT`, `PROFESSIONAL` or `ADMIN`), `active` (`true` or `false`), `page` (from 1) and `limit` (1 to 100, default 20). Newest registrations come first. The response is `{"data": [...], "meta": {"page", "limit", "total", "totalPages"}}`; an invalid parameter gets `400 VALIDATION_ERROR` with `details`.
 - `GET /api/v1/auth/admin/accounts/{id}`: one account, or `404 NOT_FOUND`.
 
+Professionals and administrators read the names of several accounts (DEC-013) with `GET /api/v1/auth/accounts/names?ids=<uuid>,<uuid>` (1 to 50 ids) → `{"data": [{"id", "fullName"}]}`. A `PROFESSIONAL` gets only names of `PATIENT` accounts, an `ADMIN` any account; ids the caller may not see are left out; other roles get `403 FORBIDDEN` and a missing, malformed or too long `ids` gets `400 VALIDATION_ERROR`.
+
 Each account has `id`, `fullName`, `email`, `identityDocument`, `role`, `active`, `registrationDate` and `lastAccess` (RFC 3339 UTC; `null` before the first sign-in). Every successful login stamps `lastAccess`. The password hash is never returned.
 
 `PUT /api/v1/auth/admin/accounts/{id}/status` with `{"active": false}` blocks an account and `{"active": true}` restores it, answering the updated account. Repeating the current value changes nothing.
