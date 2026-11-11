@@ -3,12 +3,14 @@ package com.telemed.identityaccess.app.config;
 import com.telemed.identityaccess.application.port.in.BrowseAccountsUseCase;
 import com.telemed.identityaccess.application.port.in.ChangeAccountStatusUseCase;
 import com.telemed.identityaccess.application.port.in.ChangeProfessionalAccountStatusUseCase;
+import com.telemed.identityaccess.application.port.in.LookupAccountNamesUseCase;
 import com.telemed.identityaccess.application.port.out.AccountDirectoryPort;
 import com.telemed.identityaccess.application.port.out.RefreshTokenRepositoryPort;
 import com.telemed.identityaccess.application.port.out.UserRepositoryPort;
 import com.telemed.identityaccess.application.usecase.BrowseAccountsService;
 import com.telemed.identityaccess.application.usecase.ChangeAccountStatusService;
 import com.telemed.identityaccess.application.usecase.ChangeProfessionalAccountStatusService;
+import com.telemed.identityaccess.application.usecase.LookupAccountNamesService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -23,6 +25,14 @@ public class AccountAdministrationConfiguration {
             AccountDirectoryPort directory
     ) {
         return new BrowseAccountsService(directory);
+    }
+
+    /** DEC-013: names of several accounts for professionals and administrators. */
+    @Bean
+    LookupAccountNamesUseCase lookupAccountNamesUseCase(
+            AccountDirectoryPort directory
+    ) {
+        return new LookupAccountNamesService(directory);
     }
 
     @Bean

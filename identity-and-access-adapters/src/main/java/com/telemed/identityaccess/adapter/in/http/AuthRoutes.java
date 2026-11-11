@@ -23,6 +23,9 @@ public final class AuthRoutes {
     public static final String ADMIN_ACCOUNTS =
             "/admin/accounts";
 
+    public static final String ACCOUNT_NAMES =
+            "/accounts/names";
+
     public static final String SESSION_PATH =
             BASE + SESSION;
 
@@ -40,6 +43,9 @@ public final class AuthRoutes {
 
     public static final String ADMIN_ACCOUNTS_PATH =
             BASE + ADMIN_ACCOUNTS;
+
+    public static final String ACCOUNT_NAMES_PATH =
+            BASE + ACCOUNT_NAMES;
 
     private AuthRoutes() {
     }

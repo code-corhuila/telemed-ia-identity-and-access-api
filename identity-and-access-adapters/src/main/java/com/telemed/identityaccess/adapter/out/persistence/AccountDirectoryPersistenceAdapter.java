@@ -71,6 +71,13 @@ public class AccountDirectoryPersistenceAdapter
         return users.findAll(idsOfRole).stream().map(this::toView).toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountView> findByIds(Collection<UUID> accountIds) {
+        Specification<UserJpaEntity> ids = (root, criteria, builder) -> root.get("id").in(accountIds);
+        return users.findAll(ids).stream().map(this::toView).toList();
+    }
+
     private static Specification<UserJpaEntity> matching(Query query) {
         return (root, criteria, builder) -> {
             List<Predicate> filters = new ArrayList<>();
