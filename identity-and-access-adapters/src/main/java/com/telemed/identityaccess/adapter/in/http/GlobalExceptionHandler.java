@@ -3,6 +3,7 @@ package com.telemed.identityaccess.adapter.in.http;
 import com.telemed.identityaccess.application.exception.AccountNotFoundException;
 import com.telemed.identityaccess.application.exception.AccountProvisioningException;
 import com.telemed.identityaccess.application.exception.AccountStatusConflictException;
+import com.telemed.identityaccess.application.exception.AccountNamesNotAllowedException;
 import com.telemed.identityaccess.application.exception.AdministratorRequiredException;
 import com.telemed.identityaccess.application.exception.AuthenticationException;
 import com.telemed.identityaccess.application.exception.RegistrationException;
@@ -105,9 +106,9 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(AdministratorRequiredException.class)
+    @ExceptionHandler({AdministratorRequiredException.class, AccountNamesNotAllowedException.class})
     public ResponseEntity<ApiErrorResponse> handleAdministratorRequired(
-            AdministratorRequiredException exception,
+            RuntimeException exception,
             HttpServletRequest request
     ) {
 

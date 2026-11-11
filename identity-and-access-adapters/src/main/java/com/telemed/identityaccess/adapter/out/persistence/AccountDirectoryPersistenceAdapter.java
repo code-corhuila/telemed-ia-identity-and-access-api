@@ -72,8 +72,10 @@ public class AccountDirectoryPersistenceAdapter
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AccountView> findByIds(Collection<UUID> accountIds) {
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Specification<UserJpaEntity> ids = (root, criteria, builder) -> root.get("id").in(accountIds);
+        return users.findAll(ids).stream().map(this::toView).toList();
     }
 
     private static Specification<UserJpaEntity> matching(Query query) {
