@@ -109,6 +109,9 @@ security:
   # Service clients allowed to read a patient's e-mail at GET /internal/notification-recipients/{id}.
   notification-recipients:
     clients: ${NOTIFICATION_RECIPIENTS_CLIENTS:notifications}
+  # DEC-014: service clients allowed to read account names at GET /internal/account-names.
+  account-names:
+    clients: ${ACCOUNT_NAMES_CLIENTS:document-generation}
 
   # Norma 5.7: services (document generation, the worker...) ask POST /internal/service-token.
   # "client-id:bcrypt-hash,client-id:bcrypt-hash"; empty means no service may get a token.

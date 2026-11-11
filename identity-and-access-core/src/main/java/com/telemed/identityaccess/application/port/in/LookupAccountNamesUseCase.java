@@ -23,6 +23,12 @@ public interface LookupAccountNamesUseCase {
      */
     List<AccountName> lookup(Role callerRole, Set<UUID> accountIds);
 
+    /**
+     * DEC-014: names of accounts of any role for an allowed service client. The caller is
+     * checked before this is reached (ServiceCallerFilter). Unknown ids are left out.
+     */
+    List<AccountName> lookupForService(Set<UUID> accountIds);
+
     record AccountName(
             UUID id,
             String fullName
