@@ -83,6 +83,29 @@ class LookupAccountNamesServiceTest {
                 .hasMessage("ids must contain 1 to 50 account ids.");
     }
 
+    @Test
+    void shouldGiveAServiceTheNameOfAnyAccount() {
+
+        when(directory.findByIds(Set.of(PATIENT_ID, DOCTOR_ID)))
+                .thenReturn(List.of(
+                        account(PATIENT_ID, "Laura Gómez", Role.PATIENT),
+                        account(DOCTOR_ID, "Andrés Molina", Role.PROFESSIONAL)));
+
+        assertThat(useCase.lookupForService(Set.of(PATIENT_ID, DOCTOR_ID)))
+                .containsExactlyInAnyOrder(
+                        new AccountName(PATIENT_ID, "Laura Gómez"),
+                        new AccountName(DOCTOR_ID, "Andrés Molina"));
+    }
+
+    @Test
+    void shouldAcceptOneToFiftyIdsForAService() {
+
+        assertThatThrownBy(() -> useCase.lookupForService(Set.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ids must contain 1 to 50 account ids.");
+        verifyNoInteractions(directory);
+    }
+
     private static AccountView account(UUID id, String fullName, Role role) {
         return new AccountView(id, fullName, fullName.toLowerCase().replace(' ', '.') + "@telemed.co",
                 "DOC-" + id.toString().substring(0, 4), role, true,

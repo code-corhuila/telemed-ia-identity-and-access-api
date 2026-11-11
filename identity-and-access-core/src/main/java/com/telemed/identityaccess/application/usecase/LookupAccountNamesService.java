@@ -35,4 +35,9 @@ public class LookupAccountNamesService implements LookupAccountNamesUseCase {
                 .map(account -> new AccountName(account.id(), account.fullName()))
                 .toList();
     }
+
+    @Override
+    public List<AccountName> lookupForService(Set<UUID> accountIds) {
+        throw new UnsupportedOperationException("not implemented");
+    }
 }
