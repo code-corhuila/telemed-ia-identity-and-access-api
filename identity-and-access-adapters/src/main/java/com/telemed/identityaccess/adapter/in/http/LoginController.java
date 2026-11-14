@@ -2,6 +2,8 @@ package com.telemed.identityaccess.adapter.in.http;
 
 import com.telemed.identityaccess.application.port.in.LoginUseCase;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class LoginController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(LoginController.class);
 
     private final LoginUseCase loginUseCase;
 
@@ -33,6 +37,13 @@ public class LoginController {
 
         LoginUseCase.Result result =
                 loginUseCase.login(command);
+
+        // The account id only: never the e-mail, the password or the tokens.
+        LOG.atInfo()
+                .addKeyValue("event", "auth.login.succeeded")
+                .addKeyValue("user_id", result.userId().toString())
+                .addKeyValue("role", result.role().name())
+                .log("login succeeded");
 
         LoginResponse response =
                 LoginResponse.from(result);

@@ -1,0 +1,52 @@
+package com.telemed.identityaccess.adapter.in.http;
+
+public final class AuthRoutes {
+
+    public static final String BASE =
+            "/api/v1/auth";
+
+    public static final String SESSION =
+            "/session";
+
+    public static final String REFRESH =
+            "/refresh";
+
+    public static final String LOGOUT =
+            "/logout";
+
+    public static final String PASSWORD_RECOVERY =
+            "/password-recovery";
+
+    public static final String PASSWORD_RESET =
+            "/password-reset";
+
+    public static final String ADMIN_ACCOUNTS =
+            "/admin/accounts";
+
+    public static final String ACCOUNT_NAMES =
+            "/accounts/names";
+
+    public static final String SESSION_PATH =
+            BASE + SESSION;
+
+    public static final String REFRESH_PATH =
+            BASE + REFRESH;
+
+    public static final String LOGOUT_PATH =
+            BASE + LOGOUT;
+
+    public static final String PASSWORD_RECOVERY_PATH =
+            BASE + PASSWORD_RECOVERY;
+
+    public static final String PASSWORD_RESET_PATH =
+            BASE + PASSWORD_RESET;
+
+    public static final String ADMIN_ACCOUNTS_PATH =
+            BASE + ADMIN_ACCOUNTS;
+
+    public static final String ACCOUNT_NAMES_PATH =
+            BASE + ACCOUNT_NAMES;
+
+    private AuthRoutes() {
+    }
+}

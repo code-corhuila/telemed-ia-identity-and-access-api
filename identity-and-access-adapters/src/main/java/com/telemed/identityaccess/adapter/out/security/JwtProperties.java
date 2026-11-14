@@ -10,27 +10,16 @@ import java.time.Duration;
 @Validated
 @ConfigurationProperties(prefix = "security.jwt")
 public record JwtProperties(
-
-        @NotBlank
-        String issuer,
-
-        @NotNull
-        Duration accessTokenTtl,
-
-        @NotBlank
-        String secretBase64
-
+        @NotBlank String issuer,
+        @NotNull Duration accessTokenTtl,
+        String privateKey,
+        String privateKeyFile,
+        String publicKey,
+        String publicKeyFile
 ) {
-
     public JwtProperties {
-
-        if (accessTokenTtl != null
-                && (accessTokenTtl.isZero()
-                || accessTokenTtl.isNegative())) {
-
-            throw new IllegalArgumentException(
-                    "JWT access token TTL must be positive."
-            );
+        if (accessTokenTtl != null && (accessTokenTtl.isZero() || accessTokenTtl.isNegative())) {
+            throw new IllegalArgumentException("JWT access token TTL must be positive.");
         }
     }
 }

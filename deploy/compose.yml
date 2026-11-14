@@ -3,16 +3,68 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+
+    # Only the gateway is published (Anexo G 5.6.1): the API, including
+    # /internal/service-token, is reachable only inside the platform network.
+    expose:
+      - "8081"
     ports:
-      - "${PORT:-8081}:8081"
       - "127.0.0.1:${MANAGEMENT_PORT:-9081}:9081"
+
     environment:
       SPRING_PROFILES_ACTIVE: prod
       PORT: 8081
       MANAGEMENT_PORT: 9081
+      # infra-postgres otel-collector on the platform network; it forwards the spans to Jaeger.
+      OTLP_TRACING_ENDPOINT: ${OTLP_TRACING_ENDPOINT:-http://otel-collector:4318/v1/traces}
+
       DB_URL: ${DB_URL:?Set DB_URL to the existing identity database reachable from this container}
       DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
-      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:?Set JWT_SECRET_BASE64}
+
       JWT_ISSUER: ${JWT_ISSUER:-telemed-ia-identity-and-access}
-      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
+      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT1H}
+
+      PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:?Set PASSWORD_RESET_URL}
+      # Clients allowed to create professional accounts at /internal/accounts.
+      ACCOUNT_PROVISIONING_CLIENTS: ${ACCOUNT_PROVISIONING_CLIENTS:-professional-management,workflow}
+      ACCOUNT_STATUS_CLIENTS: ${ACCOUNT_STATUS_CLIENTS:-workflow}
+      # Clients allowed to read a patient's e-mail at /internal/notification-recipients.
+      NOTIFICATION_RECIPIENTS_CLIENTS: ${NOTIFICATION_RECIPIENTS_CLIENTS:-notifications}
+      # DEC-014: clients allowed to read account names at /internal/account-names.
+      ACCOUNT_NAMES_CLIENTS: ${ACCOUNT_NAMES_CLIENTS:-document-generation}
+
+      # Service clients allowed to ask for a service token (only bcrypt hashes, see .env.example).
+      SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}
+      SERVICE_TOKEN_TTL: ${SERVICE_TOKEN_TTL:-PT10M}
+
+      # First ADMIN (see .env.example); empty means none is created.
+      BOOTSTRAP_ADMIN_FULL_NAME: ${BOOTSTRAP_ADMIN_FULL_NAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT: ${BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+
+      # HU-03 outbox relay to RabbitMQ (exchange identity.events), reached
+      # over the platform network.
+      OUTBOX_RELAY_ENABLED: ${OUTBOX_RELAY_ENABLED:-true}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD (the broker user of the platform network)}
+
+      # Paths inside the container.
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt-public.pem
+
+    volumes:
+      - ${JWT_PRIVATE_KEY_HOST_FILE:?Set JWT_PRIVATE_KEY_HOST_FILE}:/run/secrets/jwt-private.pem:ro
+      - ${JWT_PUBLIC_KEY_HOST_FILE:?Set JWT_PUBLIC_KEY_HOST_FILE}:/run/secrets/jwt-public.pem:ro
+
+    # Shared network: the API gateway reaches this service as identity-api:8081.
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
+    name: platform
