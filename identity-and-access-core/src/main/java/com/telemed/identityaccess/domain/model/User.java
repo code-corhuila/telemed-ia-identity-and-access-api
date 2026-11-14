@@ -1,7 +1,9 @@
 package com.telemed.identityaccess.domain.model;
 
+import java.util.UUID;
+
 public record User(
-        Long id,
+        UUID id,
         String fullName,
         String email,
         String identityDocument,
@@ -22,6 +24,29 @@ public record User(
         }
     }
 
+    /**
+     * Created by professional management on behalf of an ADMIN, or by the onboarding saga, which asks
+     * for it inactive; professionals never register themselves.
+     */
+    public static User registerProfessional(
+            String fullName,
+            String email,
+            String identityDocument,
+            String passwordHash,
+            boolean active
+    ) {
+        return new User(
+                null,
+                fullName,
+                email,
+                identityDocument,
+                passwordHash,
+                Role.PROFESSIONAL,
+                active,
+                false
+        );
+    }
+
     public static User registerPatient(
             String fullName,
             String email,
@@ -37,6 +62,25 @@ public record User(
                 Role.PATIENT,
                 true,
                 false
+        );
+    }
+
+    /** The first administrator, created from the environment; nobody can register one. */
+    public static User registerAdmin(
+            String fullName,
+            String email,
+            String identityDocument,
+            String passwordHash
+    ) {
+        return new User(
+                null,
+                fullName,
+                email,
+                identityDocument,
+                passwordHash,
+                Role.ADMIN,
+                true,
+                true
         );
     }
 
