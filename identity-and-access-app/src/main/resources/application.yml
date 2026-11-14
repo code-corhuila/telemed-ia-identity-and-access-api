@@ -5,8 +5,51 @@ spring:
   profiles:
     default: dev
 
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:5000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:3000}
+      data-source-properties:
+        options: ${DB_STATEMENT_OPTIONS:-c statement_timeout=5000}
+        # Week 11 runbook (CP8): a stalled identity-db must not hold a request thread forever.
+        # Seconds, as the PostgreSQL driver reads them.
+        connectTimeout: ${DB_CONNECT_TIMEOUT_S:3}
+        socketTimeout: ${DB_SOCKET_TIMEOUT_S:10}
+
+  # HU-03: the outbox relay publishes to RabbitMQ. Confirms, returns and
+  # mandatory let an event count as published only when a queue took it.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:5s}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+# Week 11 log contract (CP2): one JSON line per event, with the request's trace context.
+logging:
+  structured:
+    format:
+      console: com.telemed.identityaccess.app.observability.ContractLogFormatter
+
 server:
   port: ${PORT:8081}
+
+  shutdown: graceful
+
+  tomcat:
+    connection-timeout: ${HTTP_CONNECTION_TIMEOUT:5s}
+    keep-alive-timeout: ${HTTP_KEEP_ALIVE_TIMEOUT:60s}
+    max-keep-alive-requests: ${HTTP_MAX_KEEP_ALIVE_REQUESTS:100}
 
 management:
   server:
@@ -15,15 +58,78 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # Week 11: the platform Prometheus scrapes identity-api:9081 on the platform network.
+        include: health,info,prometheus
 
   endpoint:
     health:
       probes:
         enabled: true
 
+  # Week 11 traces: every request is sampled and sent to the platform collector, which feeds Jaeger.
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://otel-collector:4318/v1/traces}
+
+  # A broker outage must not take identity out of rotation: events wait in
+  # the outbox and the relay publishes them once RabbitMQ is back.
+  health:
+    rabbit:
+      enabled: false
+
 security:
   jwt:
     issuer: ${JWT_ISSUER:telemed-ia-identity-and-access}
-    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
-    secret-base64: ${JWT_SECRET_BASE64}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT1H}
+    private-key: ${JWT_PRIVATE_KEY:}
+    private-key-file: ${JWT_PRIVATE_KEY_FILE:}
+    public-key: ${JWT_PUBLIC_KEY:}
+    public-key-file: ${JWT_PUBLIC_KEY_FILE:}
+
+  refresh-token:
+    ttl: ${REFRESH_TOKEN_TTL:P7D}
+
+  password-reset-token:
+    ttl: ${PASSWORD_RESET_TOKEN_TTL:PT30M}
+
+  password-recovery:
+    reset-url: ${PASSWORD_RESET_URL:http://localhost:4200/auth/reset-password}
+
+  # Service clients allowed to create professional accounts at POST /internal/accounts.
+  account-provisioning:
+    clients: ${ACCOUNT_PROVISIONING_CLIENTS:professional-management,workflow}
+
+  # Service clients allowed to activate or deactivate a professional account at PUT /internal/accounts/{id}/status.
+  account-status:
+    clients: ${ACCOUNT_STATUS_CLIENTS:workflow}
+
+  # Service clients allowed to read a patient's e-mail at GET /internal/notification-recipients/{id}.
+  notification-recipients:
+    clients: ${NOTIFICATION_RECIPIENTS_CLIENTS:notifications}
+  # DEC-014: service clients allowed to read account names at GET /internal/account-names.
+  account-names:
+    clients: ${ACCOUNT_NAMES_CLIENTS:document-generation}
+
+  # Norma 5.7: services (document generation, the worker...) ask POST /internal/service-token.
+  # "client-id:bcrypt-hash,client-id:bcrypt-hash"; empty means no service may get a token.
+  service-clients: ${SERVICE_CLIENTS:}
+  service-token:
+    ttl: ${SERVICE_TOKEN_TTL:PT10M}
+
+  # First ADMIN, created at startup only when no ADMIN exists. All four values, or none.
+  bootstrap-admin:
+    full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:}
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    identity-document: ${BOOTSTRAP_ADMIN_IDENTITY_DOCUMENT:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+identity:
+  # Off unless turned on, so tests and local tools never publish by accident.
+  outbox-relay:
+    enabled: ${OUTBOX_RELAY_ENABLED:false}
+    interval: ${OUTBOX_RELAY_INTERVAL:PT5S}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE:10}
+    confirm-timeout: ${OUTBOX_RELAY_CONFIRM_TIMEOUT:PT5S}
